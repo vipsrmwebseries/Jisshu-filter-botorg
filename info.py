@@ -130,16 +130,16 @@ SEASONS = [f"season {i}" for i in range(1, 23)]
 START_IMG = (
     environ.get(
         "START_IMG",
-        "https://graph.org/file/8d0e3819c591e0651e6f3-7c93e4fdcee0b34aa9.jpg https://graph.org/file/8e11af38c3487b989eba6-9cc674bd246261420e.jpg",
+        "https://graph.org/file/8d0e3819c591e0651e6f3-7c93e4fdcee0b34aa9.jpg https://graph.org/file/7147d11c551bd3ba34e64-fd1191195b42e4db48.jpg",
     )
 ).split()
 FORCESUB_IMG = environ.get("FORCESUB_IMG", "https://i.ibb.co/ZNC1Hnb/ad3f2c88a8f2.jpg")
 REFER_PICS = (environ.get("REFER_PICS", "https://envs.sh/PSI.jpg")).split()
 PAYPICS = (
-    environ.get("PAYPICS", "https://graph.org/file/8e11af38c3487b989eba6-9cc674bd246261420e.jpg")
+    environ.get("PAYPICS", "https://graph.org/file/e419f801841c2ee3db0fc.jpg")
 ).split()
 SUBSCRIPTION = environ.get(
-    "SUBSCRIPTION", "https://graph.org/file/9f3f47c690bbcc67633c2.jpg"
+    "SUBSCRIPTION", "https://graph.org/file/242b7f1b52743938d81f1.jpg"
 )
 REACTIONS = ["👀", "😱", "🔥", "😍", "🎉", "🥰", "😇", "⚡"]
 
