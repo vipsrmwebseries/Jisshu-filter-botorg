@@ -49,7 +49,7 @@ UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 🌐 <b><i>Audio:</i></b> <code>{}</code>
 
 ━━━━━━━━━━━━━━━━━━━
-🔍 <b>Search Movies Here:</b> <a href="https://t.me/Rk2xBotz_request">🎞️ Movie Search Group</a>
+🔍 <b>Search Movies Here:</b> <a href="https://t.me/Rk2x_Request">🎞️ Movie Search Group</a>
 ━━━━━━━━━━━━━━━━━━━
 
 <blockquote>⚡ Powered by <b>@Rk2xBotz</b></blockquote>"""
@@ -338,4 +338,5 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
 
