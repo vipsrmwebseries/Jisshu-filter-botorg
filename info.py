@@ -24,51 +24,51 @@ PORT = environ.get("PORT", "8082")
 # Owners
 ADMINS = [
     int(admin) if id_pattern.search(admin) else admin
-    for admin in environ.get("ADMINS", "5672857559").split()
+    for admin in environ.get("ADMINS", "8200986306").split()
 ]
 OWNER_USERNAME = environ.get(
-    "OWNER_USERNAME", "IM_JISSHU"
+    "OWNER_USERNAME", "Rk2xBots"
 )  # without @ or https://t.me/
-USERNAME = environ.get("USERNAME", "")  # ADMIN USERNAME
+USERNAME = environ.get("USERNAME", "Rk2xBots")  # ADMIN USERNAME
 
 # Database Channel
 CHANNELS = [
     int(ch) if id_pattern.search(ch) else ch
-    for ch in environ.get("CHANNELS", "").split()
+    for ch in environ.get("CHANNELS", "-1002859176889").split()
 ]
 
 # ForceSub Channel & Log Channels
-AUTH_CHANNEL = int(environ.get("AUTH_CHANNEL", ""))
-AUTH_REQ_CHANNEL = int(environ.get("AUTH_REQ_CHANNEL", ""))
-LOG_CHANNEL = int(environ.get("LOG_CHANNEL", ""))
-LOG_API_CHANNEL = int(environ.get("LOG_API_CHANNEL", ""))
-LOG_VR_CHANNEL = int(environ.get("LOG_VR_CHANNEL", ""))
+AUTH_CHANNEL = int(environ.get("AUTH_CHANNEL", "-1003211425666"))
+AUTH_REQ_CHANNEL = int(environ.get("AUTH_REQ_CHANNEL", "-1002986618311"))
+LOG_CHANNEL = int(environ.get("LOG_CHANNEL", "-1002932289001"))
+LOG_API_CHANNEL = int(environ.get("LOG_API_CHANNEL", "-1002932289001"))
+LOG_VR_CHANNEL = int(environ.get("LOG_VR_CHANNEL", "-1002932289001"))
 
 # MongoDB
-DATABASE_URI = environ.get("DATABASE_URI", "")
+DATABASE_URI = environ.get("DATABASE_URI", "mongodb+srv://vipsrmbot_db_user:vipsrmbot_db_user@cluster0.xqckni5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 DATABASE_NAME = environ.get("DATABASE_NAME", "Cluster0")
 
 # Files index database url
-FILES_DATABASE = environ.get("FILES_DATABASE", "")
+FILES_DATABASE = environ.get("FILES_DATABASE", "mongodb+srv://vipsrmbot_db_user:vipsrmbot_db_user@cluster0.xqckni5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 COLLECTION_NAME = environ.get("COLLECTION_NAME", "jisshu")
 
 # Other Channel's
-SUPPORT_GROUP = int(environ.get("SUPPORT_GROUP", "-1001864434358"))
+SUPPORT_GROUP = int(environ.get("SUPPORT_GROUP", "-1003091186065"))
 DELETE_CHANNELS = int(environ.get("DELETE_CHANNELS", "0"))
-request_channel = environ.get("REQUEST_CHANNEL", "-1001864434358")
+request_channel = environ.get("REQUEST_CHANNEL", "-1003091186065")
 REQUEST_CHANNEL = (
     int(request_channel)
     if request_channel and id_pattern.search(request_channel)
     else None
 )
-MOVIE_UPDATE_CHANNEL = int(environ.get("MOVIE_UPDATE_CHANNEL", "-1001864434358"))
+MOVIE_UPDATE_CHANNEL = int(environ.get("MOVIE_UPDATE_CHANNEL", "-1002363286486"))
 
 # Added Link Here Not Id
 SUPPORT_CHAT = environ.get("SUPPORT_CHAT", "")
-MOVIE_GROUP_LINK = environ.get("MOVIE_GROUP_LINK", "")
+MOVIE_GROUP_LINK = environ.get("MOVIE_GROUP_LINK", "https://t.me/Rk2x_Request")
 
 # Verification
-IS_VERIFY = is_enabled("IS_VERIFY", True)
+IS_VERIFY = is_enabled("IS_VERIFY", False)
 # ---------------------------------------------------------------
 TUTORIAL = environ.get("TUTORIAL", "https://t.me/")
 TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/")
@@ -130,13 +130,13 @@ SEASONS = [f"season {i}" for i in range(1, 23)]
 START_IMG = (
     environ.get(
         "START_IMG",
-        "https://i.ibb.co/qpxpGmC/image.jpg https://i.ibb.co/DQ35zLZ/image.jpg",
+        "https://graph.org/file/8d0e3819c591e0651e6f3-7c93e4fdcee0b34aa9.jpg https://graph.org/file/8e11af38c3487b989eba6-9cc674bd246261420e.jpg",
     )
 ).split()
 FORCESUB_IMG = environ.get("FORCESUB_IMG", "https://i.ibb.co/ZNC1Hnb/ad3f2c88a8f2.jpg")
 REFER_PICS = (environ.get("REFER_PICS", "https://envs.sh/PSI.jpg")).split()
 PAYPICS = (
-    environ.get("PAYPICS", "https://graph.org/file/f4db1c3ad3d9e38b328e6.jpg")
+    environ.get("PAYPICS", "https://graph.org/file/8e11af38c3487b989eba6-9cc674bd246261420e.jpg")
 ).split()
 SUBSCRIPTION = environ.get(
     "SUBSCRIPTION", "https://graph.org/file/9f3f47c690bbcc67633c2.jpg"
@@ -147,7 +147,7 @@ REACTIONS = ["👀", "😱", "🔥", "😍", "🎉", "🥰", "😇", "⚡"]
 # Other Funtions
 FILE_AUTO_DEL_TIMER = int(environ.get("FILE_AUTO_DEL_TIMER", "600"))
 AUTO_FILTER = is_enabled("AUTO_FILTER", True)
-IS_PM_SEARCH = is_enabled("IS_PM_SEARCH", False)
+IS_PM_SEARCH = is_enabled("IS_PM_SEARCH", True)
 IS_SEND_MOVIE_UPDATE = is_enabled(
     "IS_SEND_MOVIE_UPDATE", False
 )  # Don't Change It ( If You Want To Turn It On Then Turn It On By Commands) We Suggest You To Make It Turn Off If You Are Indexing Files First Time.
