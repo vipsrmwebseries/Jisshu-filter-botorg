@@ -40,17 +40,19 @@ CAPTION_LANGUAGES = [
     "Urdu",
 ]
 
-UPDATE_CAPTION = """<b>𝖭𝖤𝖶 {} 𝖠𝖣𝖣𝖤𝖣 ✅</b>
+UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 
-🎬 <b>{} {}</b>
-🔰 <b>Quality:</b> {}
-🎧 <b>Audio:</b> {}
+🖥️ <b><i>Category:</i></b> <code>{}</code>
+♻️ <b><i>File name:</i></b> <code>{}</code>
+🩻 <b><i>Year:</i></b> <code>{}</code>
+💿 <b><i>Format:</i></b> <code>{}</code>
+🌐 <b><i>Audio:</i></b> <code>{}</code>
 
-<b>✨ Telegram Files ✨</b>
+━━━━━━━━━━━━━━━━━━━
+🔍 <b>Search Movies Here:</b> <a href="https://t.me/Rk2xBotz_request">🎞️ Movie Search Group</a>
+━━━━━━━━━━━━━━━━━━━
 
-{}
-
-<blockquote>〽️ Powered by @Jisshu_bots</b></blockquote>"""
+<blockquote>⚡ Powered by <b>@Rk2xBotz</b></blockquote>"""
 
 QUALITY_CAPTION = """📦 {} : {}\n"""
 
@@ -336,3 +338,4 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
