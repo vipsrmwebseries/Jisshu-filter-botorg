@@ -4,7 +4,7 @@ pymongo[srv]==4.5.0
 motor
 marshmallow==3.20.1 
 umongo
-git+https://github.com/Joelkb/cinemagoer 
+git+https://github.com/DreamXBotz/cinemagoer 
 search_engine_parser 
 wget 
 aiofiles 
@@ -48,5 +48,6 @@ pyromod
 colorama
 
 telegraph 
+
 
 
