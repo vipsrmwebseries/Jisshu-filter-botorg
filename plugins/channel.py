@@ -198,7 +198,7 @@ async def send_movie_update(bot, file_name, files):
                 line = f"📦 {quality} : " + " | ".join(links)
                 quality_text += line + "\n"
 
-        image_url = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
+        image_url = poster or "https://graph.org/file/ee66520e3ae6c8bbbead4-eca7825e84a7a40928.jpg"
         full_caption = UPDATE_CAPTION.format(kind, title, year, files[0]['quality'], language, quality_text)
 
         movie_update_channel = await db.movies_update_channel_id()
@@ -338,6 +338,7 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
 
 
 
