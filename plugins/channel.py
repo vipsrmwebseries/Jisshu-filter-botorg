@@ -40,16 +40,16 @@ CAPTION_LANGUAGES = [
     "Urdu",
 ]
 
-UPDATE_CAPTION = """<blockquote><b>💯 𝗡𝗘𝗪 𝗙𝗜𝗟𝗘𝗦 𝗔𝗗𝗗𝗘𝗗 ✅</b></blockquote>
+UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 
 🖥️ <b><i>Category:</i></b> #{}
-♻️ <b><i>File name:</i></b> <code>{}</code>
+♻️ <b><i>File name:</i></b> <code>{}</code> ⿻ |
 🩻 <b><i>Year:</i></b> <code>{}</code>
 💿 <b><i>Format:</i></b> <code>{}</code>
 🌐 <b><i>Audio:</i></b> <code>{}</code>
 
 ━━━━━━━━━━━━━━━━━━━
-🔍 <b>Search Movies Here:</b> <a href="https://t.me/Rk2x_Request">🎞️ Movie Search Group</a>
+🔍 <b>𝐂𝐥𝐢𝐜𝐤 𝐇𝐞𝐫𝐞:</b> <a href="https://t.me/Rk2x_Request">🎞️ Mᴏᴠɪᴇs Sᴇᴀʀᴄʜ Gʀᴏᴜᴘ</a>
 ━━━━━━━━━━━━━━━━━━━
 
 <blockquote>⚡ Powered by <b>@Rk2xBotz</b></blockquote>"""
@@ -338,6 +338,7 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
 
 
 
