@@ -3,8 +3,10 @@
 class script(object):
     START_TXT = """ʜᴇʏ {}, {}
     
-ɪ ᴀᴍ ᴀ ᴘᴏᴡᴇʀꜰᴜʟ ᴀᴜᴛᴏꜰɪʟᴛᴇʀ ʙᴏᴛ. ʏᴏᴜ ᴄᴀɴ ᴜsᴇ ᴍᴇ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ɪ ᴡɪʟʟ ɢɪᴠᴇ ᴍᴏᴠɪᴇs ᴏʀ sᴇʀɪᴇs ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀɴᴅ ᴘᴍ !! 😍
-<blockquote>🌿 ᴍᴀɪɴᴛᴀɪɴᴇᴅ ʙʏ : <a href="https://t.me/rk2xbotz">Rk2x Bots &lt;/&gt;</a></b></blockquote>"""
+<b>ɪᴍ ⚡️ ᴘᴏᴡᴇʀғᴜʟ ᴀᴜᴛᴏ-ғɪʟᴛᴇʀ ʙᴏᴛ...
+😎 ʏᴏᴜ ᴄᴀɴ ᴜsᴇ ᴍᴇ ᴀs ᴀ ᴀᴜᴛᴏ-ғɪʟᴛᴇʀ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ....
+ɪᴛs ᴇᴀsʏ ᴛᴏ ᴜsᴇ ᴍᴇ: ᴊᴜsᴛ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀs ᴀᴅᴍɪɴ, ᴛʜᴀᴛs ᴀʟʟ, ɪ ᴡɪʟʟ ᴘʀᴏᴠɪᴅᴇ ᴍᴏᴠɪᴇs ᴛʜᴇʀᴇ...😎
+©ᴍᴀɴᴛᴀɪɴᴇᴅ ʙʏ: Rᴋ2x Bᴏᴛᴢ</b>"""
 
     HELP_TXT = """<b>ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʙᴜᴛᴛᴏɴꜱ ʙᴇʟᴏᴡ ᴛᴏ ɢᴇᴛ ᴅᴏᴄᴜᴍᴇɴᴛᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ꜱᴘᴇᴄɪꜰɪᴄ ᴍᴏᴅᴜʟᴇꜱ..</b>"""
 
@@ -117,11 +119,14 @@ User - {}"""
 ⭐ Rating: {rating} / 10</b>
 """
 
-    FILE_CAPTION = """⚡<b>File uploaded by [Rk2xBotz™](https://t.me/rk2xbotz)</b>⚡
-<blockquote>𝙁𝙞𝙡𝙚 𝙉𝙖𝙢𝙚📂:<b><a>{file_name}</a></b></blockquote>
-<b>𝗝𝗼𝗶𝗻 ✓: <a>1- @Rk2xBotz 2- @Rk2xBotUpdate</a></b>
+    FILE_CAPTION = """<b><u>⚠️DELETING IN 5minutes⚠️ғᴏʀᴡᴀʀᴅ ᴀɴᴅ sᴛᴀʀᴛ ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ᴛʜᴇʀᴇ.</u></b>
+⚡<b>File uploaded by [Rk2xBotz™](https://t.me/rk2xbotz)</b>⚡
 
-<blockquote>𝙐𝙨𝙚 𝙑𝙇𝘾 𝙋𝙡𝙖𝙮𝙚𝙧 / 𝙓𝙋𝙡𝙖𝙮𝙚𝙧 / 𝙈𝙓 𝙋𝙡𝙖𝙮𝙚𝙧 𝙏𝙤 𝙒𝙖𝙩𝙘𝙝 𝙏𝙝𝙞𝙨 𝙑𝙞𝙙𝙚𝙤 𝙁𝙞𝙡𝙚</blockquote>"""
+𝙁𝙞𝙡𝙚 𝙉𝙖𝙢𝙚:<code><a>{file_name}</a></code>
+
+<b>📢 Latest Uploads:</b> <b><a href="https://t.me/+q4_4N_gRvfo4OGM1">Rk2xBotzu</a></b>
+<b>🤖 Bot Updates:</b> <b><a href="https://t.me/Rk2xBotz">Rk2xBotz</a></b>
+<blockquote><u>𝙐𝙨𝙚 𝙑𝙇𝘾 𝙋𝙡𝙖𝙮𝙚𝙧 / 𝙓𝙋𝙡𝙖𝙮𝙚𝙧 / 𝙈𝙓 𝙋𝙡𝙖𝙮𝙚𝙧 𝙏𝙤 𝙒𝙖𝙩𝙘𝙝 𝙏𝙝𝙞𝙨 𝙑𝙞𝙙𝙚𝙤 𝙁𝙞𝙡𝙚</u></blockquote>"""
 
     ALRT_TXT = """ᴡʜᴀᴛ ᴀʀᴇ ʏᴏᴜ sᴇᴀʀᴄʜɪɴɢ !?"""
 
@@ -449,6 +454,7 @@ Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀɴᴅ ᴍᴀᴋᴇ ᴍᴇ ᴀ�
 ʙʏ /details ᴄᴏᴍᴍᴀɴᴅ
 </blockquote>
 Iғ ʏᴏᴜ ʜᴀᴠᴇ ᴀɴʏ ᴅᴏᴜʙᴛs ᴘʟᴇᴀsᴇ <a href="https://telegram.dog/rk2xbotz">ᴄᴏɴᴛᴀᴄᴛ</a> ᴍʏ <a href="https://telegram.dog/Rk2xbotz">Z I Ƨ Ή Λ П ♡</a></b>"""
+
 
 
 
