@@ -1310,16 +1310,12 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 )
             ],
             [
-                InlineKeyboardButton("• ᴅɪꜱᴀʙʟᴇ ᴀᴅꜱ •", callback_data="jisshupremium"),
-                InlineKeyboardButton("• ꜱᴘᴇᴄɪᴀʟ •", callback_data="special"),
-            ],
-            [
                 InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data="help"),
                 InlineKeyboardButton("• ᴀʙᴏᴜᴛ •", callback_data="about"),
             ],
             [
                 InlineKeyboardButton(
-                    "• ᴇᴀʀɴ ᴜɴʟɪᴍɪᴛᴇᴅ ᴍᴏɴᴇʏ ᴡɪᴛʜ ʙᴏᴛ •", callback_data="earn"
+                    "• ⚡ᴍᴏᴠɪᴇs/ᴡᴇʙ ʀᴇǫᴜᴇsᴛ✨ •", callback_data="earn"
                 )
             ],
         ]
@@ -1517,9 +1513,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                         )
                     ],
                     [
-                        InlineKeyboardButton("sᴏᴜʀᴄᴇ ᴄᴏᴅᴇ", callback_data="source"),
-                        InlineKeyboardButton(
-                            "ᴄᴏɴᴛʀɪʙᴜᴛᴏʀs", callback_data="mydevelopers"
+                        InlineKeyboardButton("Cʜᴀɴɴᴇʟ", url="https://t.me/Rk2xBotz"),
                         ),
                     ],
                     [InlineKeyboardButton("⋞ ʜᴏᴍᴇ", callback_data="start")],
