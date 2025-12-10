@@ -120,12 +120,13 @@ User - {}"""
 """
 
     FILE_CAPTION = """<b><u>⚠️DELETING IN 5minutes⚠️ғᴏʀᴡᴀʀᴅ ᴀɴᴅ sᴛᴀʀᴛ ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ᴛʜᴇʀᴇ.</u></b>
+    
 ⚡<b>File uploaded by [Rk2xBotz™](https://t.me/rk2xbotz)</b>⚡
 
 𝙁𝙞𝙡𝙚 𝙉𝙖𝙢𝙚:<code><a>{file_name}</a></code>
 
-<b>📢 Latest Uploads:</b> <b><a href="https://t.me/+q4_4N_gRvfo4OGM1">Rk2xBotzu</a></b>
-<b>🤖 Bot Updates:</b> <b><a href="https://t.me/Rk2xBotz">Rk2xBotz</a></b>
+<b>➥📢 Latest Uploads:</b> <b><a href="https://t.me/+q4_4N_gRvfo4OGM1">Rk2xBotzu</a></b>
+<b>➥🤖 Bot Updates:</b> <b><a href="https://t.me/Rk2xBotz">Rk2xBotz</a></b>
 <blockquote><u>𝙐𝙨𝙚 𝙑𝙇𝘾 𝙋𝙡𝙖𝙮𝙚𝙧 / 𝙓𝙋𝙡𝙖𝙮𝙚𝙧 / 𝙈𝙓 𝙋𝙡𝙖𝙮𝙚𝙧 𝙏𝙤 𝙒𝙖𝙩𝙘𝙝 𝙏𝙝𝙞𝙨 𝙑𝙞𝙙𝙚𝙤 𝙁𝙞𝙡𝙚</u></blockquote>"""
 
     ALRT_TXT = """ᴡʜᴀᴛ ᴀʀᴇ ʏᴏᴜ sᴇᴀʀᴄʜɪɴɢ !?"""
@@ -454,6 +455,7 @@ Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀɴᴅ ᴍᴀᴋᴇ ᴍᴇ ᴀ�
 ʙʏ /details ᴄᴏᴍᴍᴀɴᴅ
 </blockquote>
 Iғ ʏᴏᴜ ʜᴀᴠᴇ ᴀɴʏ ᴅᴏᴜʙᴛs ᴘʟᴇᴀsᴇ <a href="https://telegram.dog/rk2xbotz">ᴄᴏɴᴛᴀᴄᴛ</a> ᴍʏ <a href="https://telegram.dog/Rk2xbotz">Z I Ƨ Ή Λ П ♡</a></b>"""
+
 
 
 
