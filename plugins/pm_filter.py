@@ -1310,12 +1310,12 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 )
             ],
             [
-                InlineKeyboardButton("• ʜᴇʟᴘ •", callback_data="help"),
+                InlineKeyboardButton("•♻️ʜᴇʟᴘ♻️•", callback_data="help"),
                 InlineKeyboardButton("• ᴀʙᴏᴜᴛ •", callback_data="about"),
             ],
             [
                 InlineKeyboardButton(
-                    "• ⚡ᴍᴏᴠɪᴇs/ᴡᴇʙ ʀᴇǫᴜᴇsᴛ✨ •", callback_data="earn"
+                    "•⚡ᴍᴏᴠɪᴇs/ᴡᴇʙ ʀᴇǫᴜᴇsᴛ✨•", url="https://t.me/Rk2x_Request"
                 )
             ],
         ]
@@ -1354,7 +1354,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     elif query.data == "special":
         btn = [
             [
-                InlineKeyboardButton("• ᴍᴏsᴛ sᴇᴀʀᴄʜ •", callback_data="mostsearch"),
+                InlineKeyboardButton("⚡ᴍᴏᴠɪᴇs/ᴡᴇʙ ʀᴇǫᴜᴇsᴛ✨", url="https://t.me/NotRk2xBot"),
                 InlineKeyboardButton("• ᴛᴏᴘ ᴛʀᴇɴᴅɪɴɢ •", callback_data="trending"),
             ],
             [
