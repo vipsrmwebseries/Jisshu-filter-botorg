@@ -1514,7 +1514,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
                     ],
                     [
                         InlineKeyboardButton("Cʜᴀɴɴᴇʟ", url="https://t.me/Rk2xBotz"),
-                        ),
                     ],
                     [InlineKeyboardButton("⋞ ʜᴏᴍᴇ", callback_data="start")],
                 ]
