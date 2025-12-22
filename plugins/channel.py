@@ -40,22 +40,15 @@ CAPTION_LANGUAGES = [
     "Urdu",
 ]
 
-UPDATE_CAPTION = """<blockquote><b>💯 #NEW_FILES_ADDED ✅</b></blockquote>
+UPDATE_CAPTION = """<blockquote><b>💯 #NEW_{}_ADDED ✅</b></blockquote>
 
-🖥️ <b><i>Category:</i></b> #{}
+♻️ <b><i>File name:</i></b> <code>{} {}</code> ⿻ 
 
-♻️ <b><i>File name:</i></b> <code>{}</code> ⿻ |
-
-🩻 <b><i>Year:</i></b> <code>{}</code>
-
-💿 <b><i>Format:</i></b> <code>{}</code>
-
+💿 <b><i>Quality:</i></b> <code>{}</code>
 🌐 <b><i>Audio:</i></b> <code>{}</code>
-
-━━━━━━━━━━━━━━━━━━━
-🔍 <b>𝐂𝐥𝐢𝐜𝐤 𝐇𝐞𝐫𝐞:</b> <a href="https://t.me/Rk2x_Request">🎞️ Mᴏᴠɪᴇs Sᴇᴀʀᴄʜ Gʀᴏᴜᴘ</a>
-━━━━━━━━━━━━━━━━━━━
-
+━━━━━━━━━━━━━━━━━
+🔍<b><a href="https://t.me/Rk2x_Request">🎞️ Mᴏᴠɪᴇs Sᴇᴀʀᴄʜ Gʀᴏᴜᴘ</a></b>
+━━━━━━━━━━━━━━━━━
 <blockquote>⚡ Powered by <b>@Rk2xBotz</b></blockquote>"""
 
 QUALITY_CAPTION = """📦 {} : {}\n"""
@@ -210,7 +203,8 @@ async def send_movie_update(bot, file_name, files):
             chat_id=movie_update_channel if movie_update_channel else MOVIE_UPDATE_CHANNEL,
             photo=image_url,
             caption=full_caption,
-            parse_mode=enums.ParseMode.HTML
+            parse_mode=enums.ParseMode.HTML,
+            has_spoiler=True
         )
 
     except Exception as e:
@@ -342,6 +336,7 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
 
 
 
