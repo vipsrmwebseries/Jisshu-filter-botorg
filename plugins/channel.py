@@ -42,13 +42,14 @@ CAPTION_LANGUAGES = [
 
 UPDATE_CAPTION = """<blockquote><b>📩 #NEW_{}_ADDED ✅</b></blockquote>
 
-♻️ <b><i>File name➠</i></b> <code>{}</code> ⿻ 
+<b>Title ➠</b> <code>{}</code> ⿻ 
 
-<blockquote>⏱️ <b><i>Realease Year➠</i></b> {}
-💿 <b><i>Quality➠</i></b> <code>{}</code>
-🌐 <b><i>Audio➠</i></b> <code>{}</code></blockquote>
+<blockquote>⏱️ <b>ʀᴇʟᴇᴀsᴇ ʏᴇᴀʀ ➠</b> {}
+💿 <b>ǫᴜᴀʟɪᴛʏ ➠</b> <code>{}</code>
+🌐 <b>ᴀᴜᴅɪᴏ ➠</b> <code>{}</code>
+⭐ <b>ʀᴀᴛɪɴɢ ➠ {rating} / 10</b></blockquote>
 ━━━━━━━━━━━━━━━━━
-🔍<b><a href="https://t.me/Rk2x_Request">🎞️ Mᴏᴠɪᴇs Sᴇᴀʀᴄʜ Gʀᴏᴜᴘ</a></b>
+<b><a href="https://t.me/Rk2x_Request">🎞️ Mᴏᴠɪᴇs Sᴇᴀʀᴄʜ Gʀᴏᴜᴘ</a></b>
 <b><a href="https://t.me/Rk2xBotz">💌 Mᴀɪɴ Cʜᴀɴɴᴇʟ</a></b>
 ━━━━━━━━━━━━━━━━━
 <blockquote>⚡ Powered by <b>@Rk2xBotz</b></blockquote>"""
@@ -338,6 +339,7 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
 
 
 
