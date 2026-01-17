@@ -42,26 +42,24 @@ LANGS = [
     "malayalam","marathi","bengali","punjabi"
 ]
 
-bucket = defaultdict(list)
-LOCKED = set()
-POSTED = {}
+bucket = defaultdict(list)   # title -> files
+LOCKED = set()               # prevent duplicate posts
+POSTED = {}                  # title -> message_id
 
 
-# ================= TITLE CLEAN ================= #
+# ================= HELPERS ================= #
 
 def normalize_title(name: str) -> str:
     name = name.lower()
-
     remove = [
         "2160p","1080p","720p","480p",
         "hevc","x264","x265","h264","h265",
-        "web","web-dl","webdl","hdrip","bluray",
+        "web","web-dl","webdl","hdrip","bluray","hdtv",
         "aac","aac2","aac5","dd","ddp","5.1","2.0",
         "hindi","english","tamil","telugu","kannada",
         "malayalam","marathi","bengali","punjabi",
         "esub","sub","mkv","mp4"
     ]
-
     for r in remove:
         name = re.sub(rf"\b{r}\b", "", name)
 
@@ -71,11 +69,16 @@ def normalize_title(name: str) -> str:
     name = re.sub(r"(19|20)\d{2}.*", "", name)
     name = re.sub(r"[._\-()\[\]]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
-
     return f"{name.title()} {year}".strip()
 
 
-# ================= AUTO DETECT ================= #
+def db_key(title: str) -> str:
+    """DB matching key (same for save & count)"""
+    title = title.lower()
+    title = re.sub(r"(19|20)\d{2}", "", title)
+    title = re.sub(r"[^a-z0-9]", "", title)
+    return title
+
 
 def detect_category(text: str):
     if re.search(r"s\d{1,2}|season|episode|e\d{1,2}", text.lower()):
@@ -84,14 +87,14 @@ def detect_category(text: str):
 
 
 def detect_quality(text: str):
-    return [q for q in ["480p","720p","1080p","2160p"] if q in text.lower()]
+    t = text.lower()
+    return [q for q in ["480p","720p","1080p","2160p"] if q in t]
 
 
 def detect_format(text: str):
     t = text.lower()
-    formats = []
 
-    # 🚫 THEATRE SOURCES (NEVER HEVC)
+    # 🚫 Theatre sources (NEVER HEVC)
     if "hdts" in t:
         return ["HDTS"]
     if "hdtc" in t:
@@ -99,7 +102,9 @@ def detect_format(text: str):
     if "cam" in t:
         return ["CAM"]
 
-    # ✅ DIGITAL SOURCES
+    formats = []
+
+    # ✅ Digital sources
     if "web" in t:
         formats.append("WEB")
     if "bluray" in t or "bdrip" in t:
@@ -107,8 +112,8 @@ def detect_format(text: str):
     if "hdrip" in t:
         formats.append("HDRip")
 
-    # ✅ HEVC ONLY IF DIGITAL
-    if ("hevc" in t or "x265" in t) and not ("hdts" in t or "hdtc" in t or "cam" in t):
+    # ✅ HEVC only for digital
+    if ("hevc" in t or "x265" in t):
         formats.append("HEVC")
 
     return formats or ["Unknown"]
@@ -131,17 +136,17 @@ def hid(text):
 
 async def fetch_movie_poster(title: str) -> str:
     """
-    NETFLIX RULE:
-    ✔ fanart / backdrop only (16:9)
-    ❌ portrait posters blocked
+    Netflix rule:
+    ✔ LANDSCAPE ONLY (fanart / cover)
+    ❌ Portrait posters blocked
     """
     try:
         imdb = await get_poster(title)
         if imdb:
             if imdb.get("fanart"):
-                return imdb["fanart"]   # ✅ BEST 16:9
+                return imdb["fanart"]
             if imdb.get("cover"):
-                return imdb["cover"]    # ✅ LANDSCAPE
+                return imdb["cover"]
     except:
         pass
 
@@ -158,7 +163,7 @@ async def fetch_movie_poster(title: str) -> str:
     except:
         pass
 
-    return "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
+    return "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
 
 
 # ================= MEDIA HANDLER ================= #
@@ -180,7 +185,7 @@ async def media_handler(bot, message):
 # ================= QUEUE ================= #
 
 async def queue(bot, media):
-    raw = f"{media.file_name} {media.caption}"
+    raw = f"{media.file_name} {media.caption or ''}"
     title = normalize_title(media.file_name)
 
     bucket[title].append({
@@ -206,7 +211,7 @@ async def queue(bot, media):
 # ================= SEND / EDIT ================= #
 
 async def send_or_edit(bot, title, files):
-    q,f,a = [],[],[]
+    q, f, a = [], [], []
     for x in files:
         q += x["q"]
         f += x["f"]
@@ -215,8 +220,9 @@ async def send_or_edit(bot, title, files):
     category = files[0]["c"]
     recent = len(files)
 
+    key = db_key(title)
     try:
-        total = await db.get_movie_files_count(title)
+        total = await db.get_movie_files_count(key)
     except:
         total = recent
 
@@ -267,4 +273,3 @@ async def send_or_edit(bot, title, files):
     )
 
     POSTED[title] = msg.id
-
