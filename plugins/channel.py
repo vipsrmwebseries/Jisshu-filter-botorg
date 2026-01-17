@@ -23,19 +23,19 @@ POST_DELAY = 10
 
 UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 
-🖥 <b>File name:</b> <code>{title}</code>
+🖥 𝙁𝙞𝙡𝙚 𝙉𝙖𝙢𝙚: <code>{title}</code>
 
-♻️ <b>Category:</b> {category}
+♻️ 𝘾𝙖𝙩𝙚𝙜𝙤𝙧𝙮: {category}
 
-🎞 <b>Quality: {quality}</b>
+🎞 𝙌𝙪𝙖𝙡𝙞𝙩𝙮: <b>{quality}</b>
 
-💿 <b>Format: {format}</b>
+💿 𝙁𝙤𝙧𝙢𝙖𝙩: <b>{format}</b>
 
-🌍 <b>Audio: {audio}</b>
+🌍 𝘼𝙪𝙙𝙞𝙤: <b>{audio}</b>
 
-📁 <b>Recently Added Files:</b> {recent}
-🗄 <b>Total Files:</b> {total}
-"""
+📁 𝙍𝙚𝙘𝙚𝙣𝙩𝙡𝙮 𝘼𝙙𝙙𝙚𝙙 𝙁𝙞𝙡𝙚𝙨: <b>{recent} </b>
+
+🗄 𝙏𝙤𝙩𝙖𝙡 𝙁𝙞𝙡𝙚𝙨: <b>{total} </b>"""
 
 LANGS = [
     "hindi","english","tamil","telugu","kannada",
@@ -89,16 +89,29 @@ def detect_quality(text: str):
 
 def detect_format(text: str):
     t = text.lower()
-    f = []
-    if "hevc" in t or "x265" in t:
-        f.append("HEVC")
+    formats = []
+
+    # 🚫 THEATRE SOURCES (NEVER HEVC)
+    if "hdts" in t:
+        return ["HDTS"]
+    if "hdtc" in t:
+        return ["HDTC"]
+    if "cam" in t:
+        return ["CAM"]
+
+    # ✅ DIGITAL SOURCES
     if "web" in t:
-        f.append("WEB")
-    if "bluray" in t:
-        f.append("BluRay")
+        formats.append("WEB")
+    if "bluray" in t or "bdrip" in t:
+        formats.append("BluRay")
     if "hdrip" in t:
-        f.append("HDRip")
-    return f
+        formats.append("HDRip")
+
+    # ✅ HEVC ONLY IF DIGITAL
+    if ("hevc" in t or "x265" in t) and not ("hdts" in t or "hdtc" in t or "cam" in t):
+        formats.append("HEVC")
+
+    return formats or ["Unknown"]
 
 
 def detect_audio(text: str):
@@ -254,3 +267,4 @@ async def send_or_edit(bot, title, files):
     )
 
     POSTED[title] = msg.id
+
