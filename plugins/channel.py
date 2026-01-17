@@ -4,8 +4,8 @@ import re
 import hashlib
 import asyncio
 import aiohttp
-from typing import Optional
 from collections import defaultdict
+from typing import Optional
 
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -16,186 +16,210 @@ from database.users_chats_db import db
 from database.ia_filterdb import save_file, unpack_new_file_id
 
 
-# ---------------- CONFIG ---------------- #
-
-CAPTION_LANGUAGES = [
-    "Bhojpuri","Hindi","Bengali","Tamil","English","Bangla","Telugu",
-    "Malayalam","Kannada","Marathi","Punjabi","Gujarati","Korean",
-    "Spanish","French","German","Chinese","Arabic","Portuguese",
-    "Russian","Japanese","Odia","Assamese","Urdu",
-]
+# ================= CONFIG ================= #
 
 POST_DELAY = 10
 
-# 🔥 SINGLE SOURCE OF TRUTH (CAPTION)
-UPDATE_CAPTION = """<b>💯 NEW FILES ADDED ✅</b>
+CAPTION_LANGUAGES = [
+    "hindi","english","tamil","telugu","kannada",
+    "malayalam","marathi","bengali","punjabi"
+]
 
-🖥 <b>File name:</b> {title}
+UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 
-♻️ <b>Category:</b> {category}
-🎞 <b>Quality:</b> {quality}
-💿 <b>Format:</b> {format}
-🌍 <b>Audio:</b> {audio}
+🖥 <b>File name:</b> <code>{title}</code>
+
+♻️ <b>Category:</b> #{category}
+🎞 <b>Quality:</b> {qualities}
+💿 <b>Format:</b> {formats}
+🌍 <b>Audio:</b> {audios}
 
 📁 <b>Recently Added Files:</b> {recent}
 🗄 <b>Total Files:</b> {total}
 """
 
+# ================= GLOBAL STORES ================= #
 
-# ---------------- RUNTIME STORES ---------------- #
-
-movie_files = defaultdict(list)
-processing_movies = set()
-notified_movies = set()
-
-media_filter = filters.document | filters.video | filters.audio
+movie_bucket = defaultdict(list)       # title -> file infos
+processing = set()                     # titles under processing
+posted_messages = {}                   # title -> message_id
 
 
-# ---------------- MEDIA HANDLER ---------------- #
+# ================= NORMALIZE TITLE ================= #
 
-@Client.on_message(filters.chat(CHANNELS) & media_filter)
-async def media(bot, message):
-    bot_id = bot.me.id
+def normalize_title(name: str) -> str:
+    name = name.lower()
+
+    remove_words = [
+        "2160p","1080p","720p","480p",
+        "hevc","x264","x265","h264","h265",
+        "web-dl","webdl","hdrip","bluray","hdtv",
+        "aac","aac2","aac5","ddp","esub","mkv","mp4"
+    ]
+
+    for w in remove_words:
+        name = name.replace(w, "")
+
+    name = re.sub(r"[._\-()\[\]]", " ", name)
+    name = re.sub(r"\s+", " ", name)
+
+    return name.strip().title()
+
+
+# ================= DETECTORS ================= #
+
+def detect_category(text: str) -> str:
+    if re.search(r"s\d{1,2}|season|episode|e\d{1,2}", text.lower()):
+        return "#Series"
+    return "#Movies"
+
+
+def detect_quality(text: str):
+    text = text.lower()
+    return [q for q in ["480p","720p","1080p","2160p"] if q in text]
+
+
+def detect_format(text: str):
+    text = text.lower()
+    fmts = []
+    if "hevc" in text or "x265" in text:
+        fmts.append("HEVC")
+    if "web-dl" in text or "webdl" in text:
+        fmts.append("WEB")
+    if "bluray" in text:
+        fmts.append("BluRay")
+    if "hdrip" in text:
+        fmts.append("HDRip")
+    return fmts
+
+
+def detect_audio(text: str):
+    text = text.lower()
+    return [a.title() for a in CAPTION_LANGUAGES if a in text]
+
+
+def uniq(items):
+    return ", ".join(sorted(set(items))) or "Unknown"
+
+
+# ================= MEDIA HANDLER ================= #
+
+@Client.on_message(filters.chat(CHANNELS) & (filters.video | filters.document))
+async def media_handler(bot, message):
     media = getattr(message, message.media.value, None)
-
     if not media:
-        return
-
-    if media.mime_type not in ["video/mp4", "video/x-matroska", "document/mp4"]:
         return
 
     media.caption = message.caption or ""
 
     success = await save_file(media)
-    if success == "suc" and await db.get_send_movie_update_status(bot_id):
-        await queue_movie_file(bot, media)
-
-
-# ---------------- QUEUE ---------------- #
-
-async def queue_movie_file(bot, media):
-    try:
-        file_name = await movie_name_format(media.file_name)
-        caption = media.caption
-
-        quality = extract_quality(caption, media.file_name)
-        audio = extract_audio(caption)
-        category = detect_category(caption, media.file_name)
-        video_format = detect_format(caption, media.file_name)
-
-        file_id, _ = unpack_new_file_id(media.file_id)
-
-        movie_files[file_name].append({
-            "file_id": file_id,
-            "quality": quality,
-            "audio": audio,
-            "category": category,
-            "format": video_format
-        })
-
-        if file_name in processing_movies:
-            return
-
-        processing_movies.add(file_name)
-        await asyncio.sleep(POST_DELAY)
-
-        files = movie_files.pop(file_name, [])
-        processing_movies.discard(file_name)
-
-        if files:
-            await send_movie_update(bot, file_name, files)
-
-    except Exception as e:
-        processing_movies.discard(file_name)
-        await bot.send_message(LOG_CHANNEL, f"Movie update error:\n{e}")
-
-
-# ---------------- SEND UPDATE ---------------- #
-
-async def send_movie_update(bot, file_name, files):
-    if file_name in notified_movies:
+    if success != "suc":
         return
-    notified_movies.add(file_name)
 
-    title = file_name
+    await queue_file(bot, media)
 
-    quality_text = ", ".join(sorted({f["quality"] for f in files}))
-    audio_text = ", ".join(sorted({f["audio"] for f in files if f["audio"]})) or "Unknown"
+
+# ================= QUEUE ================= #
+
+async def queue_file(bot, media):
+    raw_text = f"{media.file_name} {media.caption}"
+    title = normalize_title(media.file_name)
+
+    movie_bucket[title].append({
+        "qualities": detect_quality(raw_text),
+        "formats": detect_format(raw_text),
+        "audios": detect_audio(raw_text),
+        "category": detect_category(raw_text)
+    })
+
+    if title in processing:
+        return
+
+    processing.add(title)
+    await asyncio.sleep(POST_DELAY)
+
+    files = movie_bucket.pop(title, [])
+    processing.discard(title)
+
+    if files:
+        await send_or_edit_post(bot, title, files)
+
+
+# ================= SEND / EDIT ================= #
+
+async def send_or_edit_post(bot, title, files):
+    qualities, formats, audios = [], [], []
+
+    for f in files:
+        qualities += f["qualities"]
+        formats += f["formats"]
+        audios += f["audios"]
 
     category = files[0]["category"]
-    video_format = files[0]["format"]
-
     recent_files = len(files)
+
     try:
         total_files = await db.get_movie_files_count(title)
     except:
         total_files = recent_files
 
-    poster = await fetch_movie_poster(title)
-    image_url = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
-
     caption = UPDATE_CAPTION.format(
         title=title,
         category=category,
-        quality=quality_text,
-        format=video_format,
-        audio=audio_text,
+        qualities=uniq(qualities),
+        formats=uniq(formats),
+        audios=uniq(audios),
         recent=recent_files,
         total=total_files
     )
 
     buttons = InlineKeyboardMarkup(
         [[InlineKeyboardButton(
-            "📥 Get Files",
-            url=f"https://t.me/{temp.U_NAME}?start=all_{generate_unique_id(title)}"
+            "⍟ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇsᴛ ɢʀᴏᴜᴘ⍟",
+            url=f"https://t.me/Rk2x_Request"
         )]]
     )
 
-    movie_update_channel = await db.movies_update_channel_id()
+    poster = await fetch_movie_poster(title)
+    photo = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
 
-    await bot.send_photo(
-        chat_id=movie_update_channel if movie_update_channel else MOVIE_UPDATE_CHANNEL,
-        photo=image_url,
+    chat_id = await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL
+
+    # 🔁 EDIT IF EXISTS
+    if title in posted_messages:
+        try:
+            await bot.edit_message_media(
+                chat_id=chat_id,
+                message_id=posted_messages[title],
+                media=enums.InputMediaPhoto(
+                    media=photo,
+                    caption=caption,
+                    parse_mode=enums.ParseMode.HTML,
+                    has_spoiler=True
+                ),
+                reply_markup=buttons
+            )
+            return
+        except:
+            pass
+
+    # 🆕 SEND NEW
+    msg = await bot.send_photo(
+        chat_id=chat_id,
+        photo=photo,
         caption=caption,
         reply_markup=buttons,
         has_spoiler=True,
         parse_mode=enums.ParseMode.HTML
     )
 
-
-# ---------------- HELPERS ---------------- #
-
-def detect_category(text, file_name):
-    combined = (text + " " + file_name).lower()
-    if re.search(r"s\d{1,2}|season|episode|e\d{1,2}", combined):
-        return "#Series"
-    return "#Movies"
+    posted_messages[title] = msg.id
 
 
-def detect_format(text, file_name):
-    combined = (text + " " + file_name).lower()
-    if "web-dl" in combined or "webdl" in combined:
-        return "WEB-DL"
-    if "bluray" in combined or "blu-ray" in combined:
-        return "BluRay"
-    if "hdtv" in combined:
-        return "HDTV"
-    if "hdrip" in combined:
-        return "HDRip"
-    return "HDRip"
+# ================= HELPERS ================= #
 
-
-def extract_quality(text, file_name):
-    combined = (text + " " + file_name).lower()
-    for q in ["2160p","1080p","720p","480p"]:
-        if q in combined:
-            return q
-    return "720p"
-
-
-def extract_audio(text):
-    found = [l for l in CAPTION_LANGUAGES if l.lower() in text.lower()]
-    return ", ".join(sorted(set(found)))
+def hash_id(text: str) -> str:
+    return hashlib.md5(text.encode()).hexdigest()[:6]
 
 
 async def fetch_movie_poster(title: str) -> Optional[str]:
@@ -211,14 +235,3 @@ async def fetch_movie_poster(title: str) -> Optional[str]:
                         return data[k][0]
         except:
             return None
-
-
-def generate_unique_id(name: str) -> str:
-    return hashlib.md5(name.encode("utf-8")).hexdigest()[:5]
-
-
-async def movie_name_format(name):
-    return re.sub(
-        r"[._@\-\[\]\(\)]", " ",
-        re.sub(r"@\w+|#\w+", "", name)
-    ).strip()
