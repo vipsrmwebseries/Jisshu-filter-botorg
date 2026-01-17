@@ -116,7 +116,7 @@ def detect_format(text: str):
     if ("hevc" in t or "x265" in t):
         formats.append("HEVC")
 
-    return formats or ["Unknown"]
+    return formats or ["I Don't Know 😅"]
 
 
 def detect_audio(text: str):
@@ -163,7 +163,7 @@ async def fetch_movie_poster(title: str) -> str:
     except:
         pass
 
-    return "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
+    return "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
 
 
 # ================= MEDIA HANDLER ================= #
@@ -273,3 +273,4 @@ async def send_or_edit(bot, title, files):
     )
 
     POSTED[title] = msg.id
+
