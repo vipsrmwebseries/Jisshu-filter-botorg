@@ -1,5 +1,6 @@
 # --| Netflix Style Auto Poster System |--#
 # --| Created by: Jisshu_bots & SilentXBotz |--#
+# --| Fixed by: Jarvis |--#
 
 import re
 import asyncio
@@ -13,8 +14,8 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from info import *
 from utils import get_poster
+from database.ia_filterdb import save_file, Media   # 🔥 SAME DB
 from database.users_chats_db import db
-from database.ia_filterdb import save_file
 
 
 # ================= CONFIG ================= #
@@ -33,18 +34,28 @@ UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 
 🌍 𝘼𝙪𝙙𝙞𝙤: <b>{audio}</b>
 
-📁 𝙍𝙚𝙘𝙚𝙣𝙩𝙡𝙮 𝘼𝙙𝙙𝙚𝙙 𝙁𝙞𝙡𝙚𝙨: <b>{recent} </b>
+📁 𝙍𝙚𝙘𝙚𝙣𝙩𝙡𝙮 𝘼𝙙𝙙𝙚𝙙 𝙁𝙞𝙡𝙚𝙨: <b>{recent}</b>
 
-🗄 𝙏𝙤𝙩𝙖𝙡 𝙁𝙞𝙡𝙚𝙨: <b>{total} </b>"""
+🗄 𝙏𝙤𝙩𝙖𝙡 𝙁𝙞𝙡𝙚𝙨: <b>{total}</b>
+"""
 
 LANGS = [
     "hindi","english","tamil","telugu","kannada",
     "malayalam","marathi","bengali","punjabi"
 ]
 
-bucket = defaultdict(list)   # title -> files
-LOCKED = set()               # prevent duplicate posts
-POSTED = {}                  # title -> message_id
+bucket = defaultdict(list)
+LOCKED = set()
+POSTED = {}
+
+
+# ================= DB KEY ================= #
+
+def db_key(title: str) -> str:
+    title = title.lower()
+    title = re.sub(r"(19|20)\d{2}", "", title)
+    title = re.sub(r"[^a-z0-9]", "", title)
+    return title
 
 
 # ================= HELPERS ================= #
@@ -69,15 +80,8 @@ def normalize_title(name: str) -> str:
     name = re.sub(r"(19|20)\d{2}.*", "", name)
     name = re.sub(r"[._\-()\[\]]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
+
     return f"{name.title()} {year}".strip()
-
-
-def db_key(title: str) -> str:
-    """DB matching key (same for save & count)"""
-    title = title.lower()
-    title = re.sub(r"(19|20)\d{2}", "", title)
-    title = re.sub(r"[^a-z0-9]", "", title)
-    return title
 
 
 def detect_category(text: str):
@@ -93,8 +97,6 @@ def detect_quality(text: str):
 
 def detect_format(text: str):
     t = text.lower()
-
-    # 🚫 Theatre sources (NEVER HEVC)
     if "hdts" in t:
         return ["HDTS"]
     if "hdtc" in t:
@@ -102,21 +104,17 @@ def detect_format(text: str):
     if "cam" in t:
         return ["CAM"]
 
-    formats = []
-
-    # ✅ Digital sources
+    f = []
     if "web" in t:
-        formats.append("WEB")
+        f.append("WEB")
     if "bluray" in t or "bdrip" in t:
-        formats.append("BluRay")
+        f.append("BluRay")
     if "hdrip" in t:
-        formats.append("HDRip")
+        f.append("HDRip")
+    if "hevc" in t or "x265" in t:
+        f.append("HEVC")
 
-    # ✅ HEVC only for digital
-    if ("hevc" in t or "x265" in t):
-        formats.append("HEVC")
-
-    return formats or ["I Don't Know 😅"]
+    return f or ["I don't know 😅"]
 
 
 def detect_audio(text: str):
@@ -125,45 +123,7 @@ def detect_audio(text: str):
 
 
 def merge(v):
-    return ", ".join(sorted(set(v))) or "Unknown"
-
-
-def hid(text):
-    return hashlib.md5(text.encode()).hexdigest()[:6]
-
-
-# ================= NETFLIX STYLE POSTER ================= #
-
-async def fetch_movie_poster(title: str) -> str:
-    """
-    Netflix rule:
-    ✔ LANDSCAPE ONLY (fanart / cover)
-    ❌ Portrait posters blocked
-    """
-    try:
-        imdb = await get_poster(title)
-        if imdb:
-            if imdb.get("fanart"):
-                return imdb["fanart"]
-            if imdb.get("cover"):
-                return imdb["cover"]
-    except:
-        pass
-
-    # Backup (mostly landscape)
-    try:
-        async with aiohttp.ClientSession() as session:
-            url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
-            async with session.get(url, timeout=5) as r:
-                if r.status == 200:
-                    data = await r.json()
-                    for k in ("jisshu-4","jisshu-3"):
-                        if data.get(k):
-                            return data[k][0]
-    except:
-        pass
-
-    return "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
+    return ", ".join(sorted(set(v))) or "I don't know😅"
 
 
 # ================= MEDIA HANDLER ================= #
@@ -192,7 +152,8 @@ async def queue(bot, media):
         "q": detect_quality(raw),
         "f": detect_format(raw),
         "a": detect_audio(raw),
-        "c": detect_category(raw)
+        "c": detect_category(raw),
+        "k": db_key(raw)   # 🔥 REAL DB KEY
     })
 
     if title in LOCKED:
@@ -220,9 +181,10 @@ async def send_or_edit(bot, title, files):
     category = files[0]["c"]
     recent = len(files)
 
-    key = db_key(title)
+    db_real_key = files[0]["k"]  # 🔥 EXACT SAME KEY AS SAVE
+
     try:
-        total = await db.get_movie_files_count(key)
+        total = await Media.count_documents({"file_name": db_real_key})
     except:
         total = recent
 
@@ -239,7 +201,7 @@ async def send_or_edit(bot, title, files):
     buttons = InlineKeyboardMarkup(
         [[InlineKeyboardButton(
             "⍟ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇsᴛ ɢʀᴏᴜᴘ⍟",
-            url=f"https://t.me/Rk2x_Request"
+            url="https://t.me/Rk2x_Request"
         )]]
     )
 
@@ -273,4 +235,3 @@ async def send_or_edit(bot, title, files):
     )
 
     POSTED[title] = msg.id
-
