@@ -11,62 +11,60 @@ from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from info import *
-from utils import *
+from utils import get_poster   # ⚠️ IMDB poster function
 from database.users_chats_db import db
-from database.ia_filterdb import save_file, unpack_new_file_id
+from database.ia_filterdb import save_file
 
 
-# ================= CONFIG ================= #
+# ================= SETTINGS ================= #
 
 POST_DELAY = 10
-
-CAPTION_LANGUAGES = [
-    "hindi","english","tamil","telugu","kannada",
-    "malayalam","marathi","bengali","punjabi"
-]
 
 UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 
 🖥 <b>File name:</b> <code>{title}</code>
 
-♻️ <b>Category:</b> #{category}
-🎞 <b>Quality:</b> {qualities}
-💿 <b>Format:</b> {formats}
-🌍 <b>Audio:</b> {audios}
+♻️ <b>Category:</b> {category}
+
+🎞 <b>Quality: {qualities}</b>
+
+💿 <b>Format: {formats}</b>
+
+🌍 <b>Audio: {audios}</b>
 
 📁 <b>Recently Added Files:</b> {recent}
 🗄 <b>Total Files:</b> {total}
 """
 
-# ================= GLOBAL STORES ================= #
+LANGS = [
+    "hindi","english","tamil","telugu","kannada",
+    "malayalam","marathi","bengali","punjabi"
+]
 
-movie_bucket = defaultdict(list)       # title -> file infos
-processing = set()                     # titles under processing
-posted_messages = {}                   # title -> message_id
+
+# ================= GLOBAL ================= #
+
+bucket = defaultdict(list)       # title -> files
+processing = set()
+posted = {}                      # title -> message_id
 
 
-# ================= NORMALIZE TITLE ================= #
+# ================= HELPERS ================= #
 
 def normalize_title(name: str) -> str:
     name = name.lower()
-
-    remove_words = [
+    remove = [
         "2160p","1080p","720p","480p",
         "hevc","x264","x265","h264","h265",
         "web-dl","webdl","hdrip","bluray","hdtv",
         "aac","aac2","aac5","ddp","esub","mkv","mp4"
     ]
-
-    for w in remove_words:
-        name = name.replace(w, "")
-
+    for r in remove:
+        name = name.replace(r, "")
     name = re.sub(r"[._\-()\[\]]", " ", name)
     name = re.sub(r"\s+", " ", name)
-
     return name.strip().title()
 
-
-# ================= DETECTORS ================= #
 
 def detect_category(text: str) -> str:
     if re.search(r"s\d{1,2}|season|episode|e\d{1,2}", text.lower()):
@@ -75,31 +73,69 @@ def detect_category(text: str) -> str:
 
 
 def detect_quality(text: str):
-    text = text.lower()
-    return [q for q in ["480p","720p","1080p","2160p"] if q in text]
+    return [q for q in ["480p","720p","1080p","2160p"] if q in text.lower()]
 
 
 def detect_format(text: str):
-    text = text.lower()
-    fmts = []
-    if "hevc" in text or "x265" in text:
-        fmts.append("HEVC")
-    if "web-dl" in text or "webdl" in text:
-        fmts.append("WEB")
-    if "bluray" in text:
-        fmts.append("BluRay")
-    if "hdrip" in text:
-        fmts.append("HDRip")
-    return fmts
+    t = text.lower()
+    fm = []
+    if "hevc" in t or "x265" in t:
+        fm.append("HEVC")
+    if "web-dl" in t or "webdl" in t:
+        fm.append("WEB")
+    if "bluray" in t:
+        fm.append("BluRay")
+    if "hdrip" in t:
+        fm.append("HDRip")
+    return fm
 
 
 def detect_audio(text: str):
-    text = text.lower()
-    return [a.title() for a in CAPTION_LANGUAGES if a in text]
+    t = text.lower()
+    return [l.title() for l in LANGS if l in t]
 
 
-def uniq(items):
-    return ", ".join(sorted(set(items))) or "Unknown"
+def uniq(values):
+    return ", ".join(sorted(set(values))) or "Unknown"
+
+
+def hash_id(text: str) -> str:
+    return hashlib.md5(text.encode()).hexdigest()[:6]
+
+
+# ================= IMDB LANDSCAPE POSTER ================= #
+
+async def fetch_movie_poster(title: str) -> Optional[str]:
+    """
+    Priority:
+    1. IMDB landscape poster / fanart
+    2. Backup API
+    """
+    # 🔥 IMDB FIRST
+    try:
+        imdb = await get_poster(title)
+        if imdb:
+            if imdb.get("fanart"):
+                return imdb["fanart"]      # landscape
+            if imdb.get("poster"):
+                return imdb["poster"]
+    except:
+        pass
+
+    # 🟡 BACKUP API
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
+            async with session.get(url, timeout=5) as r:
+                if r.status == 200:
+                    data = await r.json()
+                    for k in ("jisshu-4","jisshu-3","jisshu-2"):
+                        if data.get(k):
+                            return data[k][0]
+    except:
+        pass
+
+    return None
 
 
 # ================= MEDIA HANDLER ================= #
@@ -111,9 +147,8 @@ async def media_handler(bot, message):
         return
 
     media.caption = message.caption or ""
-
-    success = await save_file(media)
-    if success != "suc":
+    ok = await save_file(media)
+    if ok != "suc":
         return
 
     await queue_file(bot, media)
@@ -122,14 +157,14 @@ async def media_handler(bot, message):
 # ================= QUEUE ================= #
 
 async def queue_file(bot, media):
-    raw_text = f"{media.file_name} {media.caption}"
+    raw = f"{media.file_name} {media.caption}"
     title = normalize_title(media.file_name)
 
-    movie_bucket[title].append({
-        "qualities": detect_quality(raw_text),
-        "formats": detect_format(raw_text),
-        "audios": detect_audio(raw_text),
-        "category": detect_category(raw_text)
+    bucket[title].append({
+        "qualities": detect_quality(raw),
+        "formats": detect_format(raw),
+        "audios": detect_audio(raw),
+        "category": detect_category(raw)
     })
 
     if title in processing:
@@ -137,40 +172,39 @@ async def queue_file(bot, media):
 
     processing.add(title)
     await asyncio.sleep(POST_DELAY)
-
-    files = movie_bucket.pop(title, [])
+    files = bucket.pop(title, [])
     processing.discard(title)
 
     if files:
-        await send_or_edit_post(bot, title, files)
+        await send_or_edit(bot, title, files)
 
 
 # ================= SEND / EDIT ================= #
 
-async def send_or_edit_post(bot, title, files):
-    qualities, formats, audios = [], [], []
+async def send_or_edit(bot, title, files):
+    q, f, a = [], [], []
 
-    for f in files:
-        qualities += f["qualities"]
-        formats += f["formats"]
-        audios += f["audios"]
+    for x in files:
+        q += x["qualities"]
+        f += x["formats"]
+        a += x["audios"]
 
     category = files[0]["category"]
-    recent_files = len(files)
+    recent = len(files)
 
     try:
-        total_files = await db.get_movie_files_count(title)
+        total = await db.get_movie_files_count(title)
     except:
-        total_files = recent_files
+        total = recent
 
     caption = UPDATE_CAPTION.format(
         title=title,
         category=category,
-        qualities=uniq(qualities),
-        formats=uniq(formats),
-        audios=uniq(audios),
-        recent=recent_files,
-        total=total_files
+        qualities=uniq(q),
+        formats=uniq(f),
+        audios=uniq(a),
+        recent=recent,
+        total=total
     )
 
     buttons = InlineKeyboardMarkup(
@@ -181,16 +215,16 @@ async def send_or_edit_post(bot, title, files):
     )
 
     poster = await fetch_movie_poster(title)
-    photo = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
+    photo = poster or "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
 
     chat_id = await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL
 
     # 🔁 EDIT IF EXISTS
-    if title in posted_messages:
+    if title in posted:
         try:
             await bot.edit_message_media(
                 chat_id=chat_id,
-                message_id=posted_messages[title],
+                message_id=posted[title],
                 media=enums.InputMediaPhoto(
                     media=photo,
                     caption=caption,
@@ -203,7 +237,7 @@ async def send_or_edit_post(bot, title, files):
         except:
             pass
 
-    # 🆕 SEND NEW
+    # 🆕 SEND
     msg = await bot.send_photo(
         chat_id=chat_id,
         photo=photo,
@@ -213,25 +247,4 @@ async def send_or_edit_post(bot, title, files):
         parse_mode=enums.ParseMode.HTML
     )
 
-    posted_messages[title] = msg.id
-
-
-# ================= HELPERS ================= #
-
-def hash_id(text: str) -> str:
-    return hashlib.md5(text.encode()).hexdigest()[:6]
-
-
-async def fetch_movie_poster(title: str) -> Optional[str]:
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(
-                f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ','+')}",
-                timeout=5
-            ) as r:
-                data = await r.json()
-                for k in ["jisshu-2","jisshu-3","jisshu-4"]:
-                    if data.get(k):
-                        return data[k][0]
-        except:
-            return None
+    posted[title] = msg.id
