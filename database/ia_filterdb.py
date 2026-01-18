@@ -6,38 +6,18 @@ from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
 from motor.motor_asyncio import AsyncIOMotorClient
 from marshmallow.exceptions import ValidationError
-
 from info import FILES_DATABASE, DATABASE_NAME, COLLECTION_NAME, MAX_BTN
-
-
-# ================= DB INIT ================= #
 
 client = AsyncIOMotorClient(FILES_DATABASE)
 mydb = client[DATABASE_NAME]
 instance = Instance.from_db(mydb)
 
 
-# ================= HELPER (DB KEY) ================= #
-
-def db_key(title: str) -> str:
-    """
-    SAME key must be used:
-    - while saving file
-    - while counting files
-    """
-    title = title.lower()
-    title = re.sub(r"(19|20)\d{2}", "", title)
-    title = re.sub(r"[^a-z0-9]", "", title)
-    return title
-
-
-# ================= MODEL ================= #
-
 @instance.register
 class Media(Document):
     file_id = fields.StrField(attribute="_id")
     file_ref = fields.StrField(allow_none=True)
-    file_name = fields.StrField(required=True)   # <-- STORES db_key
+    file_name = fields.StrField(required=True)
     file_size = fields.IntField(required=True)
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
@@ -48,34 +28,25 @@ class Media(Document):
         collection_name = COLLECTION_NAME
 
 
-# ================= STATS ================= #
-
 async def get_files_db_size():
     return (await mydb.command("dbstats"))["dataSize"]
 
 
-# ================= SAVE FILE ================= #
-
 async def save_file(media):
-    """
-    Save file in database using NORMALIZED db_key
-    """
+    """Save file in database"""
 
+    # TODO: Find better way to get same file_id for same media to avoid duplicates
     file_id, file_ref = unpack_new_file_id(media.file_id)
-
-    # 🔥 NORMALIZE FILE NAME FOR DB
-    raw_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name))
-    file_name = db_key(raw_name)
-
+    file_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name))
     try:
         file = Media(
             file_id=file_id,
             file_ref=file_ref,
-            file_name=file_name,   # <-- IMPORTANT
+            file_name=file_name,
             file_size=media.file_size,
             mime_type=media.mime_type,
             caption=media.caption.html if media.caption else None,
-            file_type=media.mime_type.split("/")[0] if media.mime_type else None,
+            file_type=media.mime_type.split("/")[0],
         )
     except ValidationError:
         print("Error occurred while saving file in database")
@@ -84,14 +55,14 @@ async def save_file(media):
         try:
             await file.commit()
         except DuplicateKeyError:
-            print(f"{getattr(media, 'file_name', 'NO_FILE')} already exists in database")
+            print(
+                f'{getattr(media, "file_name", "NO_FILE")} is already saved in database'
+            )
             return "dup"
         else:
-            print(f"{getattr(media, 'file_name', 'NO_FILE')} saved to database")
+            print(f'{getattr(media, "file_name", "NO_FILE")} is saved to database')
             return "suc"
 
-
-# ================= SEARCH ================= #
 
 async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
     query = query.strip()
@@ -101,40 +72,29 @@ async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
         raw_pattern = r"(\b|[\.\+\-_])" + query + r"(\b|[\.\+\-_])"
     else:
         raw_pattern = query.replace(" ", r".*[\s\.\+\-_]")
-
     try:
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
     except:
         regex = query
-
     filter = {"file_name": regex}
     cursor = Media.find(filter)
     cursor.sort("$natural", -1)
-
     if lang:
-        lang_files = [
-            file async for file in cursor
-            if lang.lower() in (file.caption or "").lower()
-        ]
+        lang_files = [file async for file in cursor if lang in file.file_name.lower()]
         files = lang_files[offset:][:max_results]
         total_results = len(lang_files)
         next_offset = offset + max_results
         if next_offset >= total_results:
             next_offset = ""
         return files, next_offset, total_results
-
     cursor.skip(offset).limit(max_results)
     files = await cursor.to_list(length=max_results)
     total_results = await Media.count_documents(filter)
-
     next_offset = offset + max_results
     if next_offset >= total_results:
         next_offset = ""
-
     return files, next_offset, total_results
 
-
-# ================= BAD FILES ================= #
 
 async def get_bad_files(query, file_type=None, offset=0, filter=False):
     query = query.strip()
@@ -144,32 +104,26 @@ async def get_bad_files(query, file_type=None, offset=0, filter=False):
         raw_pattern = r"(\b|[\.\+\-_])" + query + r"(\b|[\.\+\-_])"
     else:
         raw_pattern = query.replace(" ", r".*[\s\.\+\-_]")
-
     try:
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
     except:
-        return [], 0
-
+        return []
     filter = {"file_name": regex}
     if file_type:
         filter["file_type"] = file_type
-
     total_results = await Media.count_documents(filter)
     cursor = Media.find(filter)
     cursor.sort("$natural", -1)
     files = await cursor.to_list(length=total_results)
-
     return files, total_results
 
 
-# ================= FILE DETAILS ================= #
-
 async def get_file_details(query):
-    cursor = Media.find({"file_id": query})
-    return await cursor.to_list(length=1)
+    filter = {"file_id": query}
+    cursor = Media.find(filter)
+    filedetails = await cursor.to_list(length=1)
+    return filedetails
 
-
-# ================= FILE ID UTILS ================= #
 
 def encode_file_id(s: bytes) -> str:
     r = b""
@@ -190,9 +144,7 @@ def encode_file_ref(file_ref: bytes) -> str:
 
 
 def unpack_new_file_id(new_file_id):
-    """
-    Return file_id, file_ref
-    """
+    """Return file_id, file_ref"""
     decoded = FileId.decode(new_file_id)
     file_id = encode_file_id(
         pack(
