@@ -4,7 +4,6 @@
 
 import re
 import asyncio
-import aiohttp
 from collections import defaultdict
 
 from pyrogram import Client, filters, enums
@@ -12,29 +11,28 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from info import *
 from utils import get_poster
-from database.users_chats_db import db
 from database.ia_filterdb import save_file
 
 
 # ================= CONFIG ================= #
 
-POST_DELAY = 10
+POST_DELAY = 10  # seconds
 
 UPDATE_CAPTION = """<blockquote><b>💯 NEW FILES ADDED ✅</b></blockquote>
 
-🖥 𝙁𝙞𝙡𝙚 𝙉𝙖𝙢𝙚: <code>{title}</code>
+🖥 <b>File Name:</b> <code>{title}</code>
 
-♻️ 𝘾𝙖𝙩𝙚𝙜𝙤𝙧𝙮: {category}
+♻️ <b>Category:</b> {category}
 {season_block}
-🎞 𝙌𝙪𝙖𝙡𝙞𝙩𝙮: <b>{quality}</b>
+🎞 <b>Quality:</b> <b>{quality}</b>
 
-💿 𝙁𝙤𝙧𝙢𝙖𝙩: <b>{format}</b>
+💿 <b>Format:</b> <b>{format}</b>
 
-🌍 𝘼𝙪𝙙𝙞𝙤: <b>{audio}</b>
+🌍 <b>Audio:</b> <b>{audio}</b>
 
-📁 𝙍𝙚𝙘𝙚𝙣𝙩𝙡𝙮 𝘼𝙙𝙙𝙚𝙙 𝙁𝙞𝙡𝙚𝙨: <b>{recent}</b>
+📁 <b>Recently Added Files:</b> <b>{recent}</b>
 
-🗄 𝙏𝙤𝙩𝙖𝙡 𝙁𝙞𝙡𝙚𝙨: <b>{total}</b>
+🗄 <b>Total Files:</b> <b>{total}</b>
 """
 
 LANGS = [
@@ -90,15 +88,15 @@ def detect_format(text: str):
     if "bluray" in t: f.append("BluRay")
     if "hdrip" in t: f.append("HDRip")
     if "x265" in t or "hevc" in t: f.append("HEVC")
-    return f or ["I Don't Know 😅"]
+    return f or ["Unknown"]
 
 
 def detect_audio(text: str):
     return [l.title() for l in LANGS if l in text.lower()]
 
 
-def merge(v):
-    return ", ".join(sorted(set(v))) or "I don't know 😅"
+def merge(values):
+    return " | ".join(sorted(set(values))) if values else "Unknown"
 
 
 # ================= POSTER ================= #
@@ -164,10 +162,11 @@ async def queue(bot, media):
 
 async def send_or_edit(bot, title, files):
     q, f, a = [], [], []
+
     for x in files:
-        q += x["q"]
-        f += x["f"]
-        a += x["a"]
+        q.extend(x["q"])
+        f.extend(x["f"])
+        a.extend(x["a"])
 
     category = files[0]["c"]
     season = files[0]["s"]
@@ -181,7 +180,7 @@ async def send_or_edit(bot, title, files):
         title=title,
         category=category,
         season_block=season_block,
-        quality=merge(q),
+        quality=merge(q),   # ✅ 480p | 720p | 1080p
         format=merge(f),
         audio=merge(a),
         recent=recent,
@@ -189,7 +188,7 @@ async def send_or_edit(bot, title, files):
     )
 
     buttons = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("⍟ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇsᴛ ɢʀᴏᴜᴘ⍟", url="https://t.me/Rk2x_Request")]]
+        [[InlineKeyboardButton("⍟ MOVIE REQUEST GROUP ⍟", url="https://t.me/Rk2x_Request")]]
     )
 
     poster = await fetch_movie_poster(title)
@@ -197,20 +196,21 @@ async def send_or_edit(bot, title, files):
 
     if title in POSTED:
         await bot.edit_message_caption(
-            chat_id,
-            POSTED[title],
-            caption,
+            chat_id=chat_id,
+            message_id=POSTED[title],
+            caption=caption,
             reply_markup=buttons,
             parse_mode=enums.ParseMode.HTML
         )
         return
 
     msg = await bot.send_photo(
-        chat_id,
-        poster,
+        chat_id=chat_id,
+        photo=poster,
         caption=caption,
         reply_markup=buttons,
-        parse_mode=enums.ParseMode.HTML
+        parse_mode=enums.ParseMode.HTML, 
+        has_spoiler=True
     )
 
     POSTED[title] = msg.id
