@@ -1,5 +1,4 @@
 # --| This code created by: Jisshu_bots & SilentXBotz |--#
-# --| Quality Order & Poster Fix by: Jarvis |--#
 
 import re
 import hashlib
@@ -25,24 +24,32 @@ CAPTION_LANGUAGES = [
     "Odia", "Assamese", "Urdu",
 ]
 
-QUALITY_ORDER = ["480p", "720p", "1080p", "2160p"]
-
 POST_DELAY = 10
 
 UPDATE_CAPTION = """<blockquote><b>𝖭𝖤𝖶 {} 𝖠𝖣𝖣𝖤𝖣 ✅</b></blockquote>
 
-🎬 <code>{}</code> || {}
+🎬 <code>{}</code> | {}
 🔰 <b>Quality: {}</b>
 🎧 <b>Audio: {}</b>
 
-<blockquote><b>✨ Telegram Files ✨</b></blockquote>
+<b>✨ Telegram Files ✨</b>
 
 {}
 
-<blockquote><b>〽️Powered by➠ @RkCineHub</b></blockquote>"""
+<blockquote><b>〽️ Powered by➠ @RkCineHub</b></blockquote>"""
 
+QUALITY_CAPTION = """📦 {} : {}\n"""
+
+# 🔘 REQUEST GROUP BUTTON
 REQUEST_BUTTON = InlineKeyboardMarkup(
-    [[InlineKeyboardButton("🎬 MOVIE REQUEST GROUP", url="https://t.me/Rk2x_Request")]]
+    [
+        [
+            InlineKeyboardButton(
+                "🎬 MOVIE REQUEST GROUP",
+                url="https://t.me/Rk2x_Request"
+            )
+        ]
+    ]
 )
 
 notified_movies = set()
@@ -124,72 +131,88 @@ async def queue_movie_file(bot, media):
             processing_movies.remove(file_name)
 
     except Exception as e:
-        processing_movies.discard(file_name)
-        await bot.send_message(LOG_CHANNEL, f"Error:\n{e}")
+        if file_name in processing_movies:
+            processing_movies.remove(file_name)
+        await bot.send_message(
+            LOG_CHANNEL,
+            f"Failed to send movie update.\nError: {e}\n\n"
+            "<blockquote>@Jisshu_support</blockquote>"
+        )
 
 
 # ================= SEND UPDATE ================= #
 
 async def send_movie_update(bot, file_name, files):
-    if file_name in notified_movies:
-        return
-    notified_movies.add(file_name)
+    try:
+        if file_name in notified_movies:
+            return
+        notified_movies.add(file_name)
 
-    imdb_data = await get_imdb(file_name)
-    title = imdb_data.get("title", file_name)
-    kind = imdb_data.get("kind", "MOVIE").upper().replace(" ", "_")
-    if kind == "TV_SERIES":
-        kind = "SERIES"
+        imdb_data = await get_imdb(file_name)
+        title = imdb_data.get("title", file_name)
+        kind = imdb_data.get("kind", "MOVIE").upper().replace(" ", "_")
+        if kind == "TV_SERIES":
+            kind = "SERIES"
 
-    # ✅ POSTER FIX (IMDB → API fallback)
-    poster = imdb_data.get("poster")
-    if not poster:
         poster = await fetch_movie_poster(title, files[0]["year"])
 
-    # ---------- LANGUAGE ----------
-    languages = set()
-    for f in files:
-        if f["language"] != "Not Idea":
-            languages.update(f["language"].split(", "))
-    language = ", ".join(sorted(languages)) or "Not Idea"
+        languages = set()
+        for f in files:
+            if f["language"] != "Not Idea":
+                languages.update(f["language"].split(", "))
+        language = ", ".join(sorted(languages)) or "Not Idea"
 
-    # ---------- QUALITY LINE FIX ----------
-    quality_set = {f["jisshuquality"] for f in files}
-    sorted_qualities = [q for q in QUALITY_ORDER if q in quality_set]
-    quality_line = ", ".join(sorted_qualities)
+        episode_pattern = re.compile(r"S(\d{1,2})E(\d{1,2})", re.I)
+        episode_map = defaultdict(dict)
 
-    # ---------- FILE LIST FIX ----------
-    quality_map = {}
-    for f in files:
-        quality_map[f["jisshuquality"]] = f
+        quality_text = ""
 
-    quality_text = ""
-    for q in QUALITY_ORDER:
-        if q in quality_map:
-            f = quality_map[q]
-            quality_text += (
-                f"📦 {q} : "
-                f"<a href='https://t.me/{temp.U_NAME}?start=file_0_{f['file_id']}'>"
-                f"{f['file_size']}</a>\n"
-            )
+        for f in files:
+            cap = f["caption"]
+            q = f["jisshuquality"]
+            fid = f["file_id"]
+            size = f["file_size"]
 
-    full_caption = UPDATE_CAPTION.format(
-        kind,
-        title,
-        files[0]["year"],
-        quality_line,
-        language,
-        quality_text
-    )
+            match = episode_pattern.search(cap)
+            if match:
+                ep = f"S{int(match.group(1)):02d}E{int(match.group(2)):02d}"
+                episode_map[ep][q] = f
 
-    await bot.send_photo(
-        chat_id=await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL,
-        photo=poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg",
-        caption=full_caption,
-        parse_mode=enums.ParseMode.HTML,
-        has_spoiler=True,
-        reply_markup=REQUEST_BUTTON
-    )
+        for ep, qs in sorted(episode_map.items()):
+            links = []
+            for q in sorted(qs.keys()):
+                f = qs[q]
+                links.append(
+                    f"<a href='https://t.me/{temp.U_NAME}?start=file_0_{f['file_id']}'>{q}</a>"
+                )
+            quality_text += f"📦 {ep} : {' - '.join(links)}\n"
+
+        if not quality_text:
+            for f in files:
+                quality_text += (
+                    f"📦 {f['jisshuquality']} : "
+                    f"<a href='https://t.me/{temp.U_NAME}?start=file_0_{f['file_id']}'>{f['file_size']}</a>\n"
+                )
+
+        full_caption = UPDATE_CAPTION.format(
+            kind, title, files[0]["year"], files[0]["quality"], language, quality_text
+        )
+
+        await bot.send_photo(
+            chat_id=await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL,
+            photo=poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg",
+            caption=full_caption,
+            parse_mode=enums.ParseMode.HTML,
+            has_spoiler=True,                # ✅ SPOILER
+            reply_markup=REQUEST_BUTTON      # ✅ BUTTON
+        )
+
+    except Exception as e:
+        await bot.send_message(
+            LOG_CHANNEL,
+            f"Failed to send movie update.\nError: {e}\n\n"
+            "<blockquote>@Jisshu_support</blockquote>"
+        )
 
 
 # ================= HELPERS ================= #
