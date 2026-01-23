@@ -3,10 +3,13 @@
 class script(object):
     START_TXT = """ʜᴇʏ {}, {}
     
-<b>ɪᴍ ⚡️ ᴘᴏᴡᴇʀғᴜʟ ᴀᴜᴛᴏ-ғɪʟᴛᴇʀ ʙᴏᴛ...
-😎 ʏᴏᴜ ᴄᴀɴ ᴜsᴇ ᴍᴇ ᴀs ᴀ ᴀᴜᴛᴏ-ғɪʟᴛᴇʀ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ....
-ɪᴛs ᴇᴀsʏ ᴛᴏ ᴜsᴇ ᴍᴇ: ᴊᴜsᴛ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀs ᴀᴅᴍɪɴ, ᴛʜᴀᴛs ᴀʟʟ, ɪ ᴡɪʟʟ ᴘʀᴏᴠɪᴅᴇ ᴍᴏᴠɪᴇs ᴛʜᴇʀᴇ...😎
-©ᴍᴀɴᴛᴀɪɴᴇᴅ ʙʏ: Rᴋ2x Bᴏᴛᴢ</b>"""
+<b>𝖨'𝗆 𝗒𝗈𝗎𝗋 𝗉𝖾𝗋𝗌𝗈𝗇𝖺𝗅 𝖺𝗌𝗌𝗂𝗌𝗍𝖺𝗇𝗍 𝖿𝗈𝗋 𝖿𝗂𝗇𝖽𝗂𝗇𝗀 𝗆𝗈𝗏𝗂𝖾𝗌 𝖺𝗇𝖽 𝖳𝖵 𝗌𝖾𝗋𝗂𝖾𝗌.</b>
+<blockquote><b>🚀 𝖧𝗈𝗐 𝗍𝗈 𝖴𝗌𝖾 𝖬𝖾:
+○ 𝖲𝖾𝖺𝗋𝖼𝗁 𝖿𝗈𝗋 𝖺 𝖬𝗈𝗏𝗂𝖾: 𝖲𝖾𝗇𝖽 𝗆𝖾 𝗍𝗁𝖾 𝗆𝗈𝗏𝗂𝖾 𝗍𝗂𝗍𝗅𝖾 𝖺𝗇𝖽 𝗒𝖾𝖺𝗋.
+○ 𝖲𝖾𝖺𝗋𝖼𝗁 𝖿𝗈𝗋 𝖺 𝖲𝖾𝗋𝗂𝖾𝗌: 𝖲𝖾𝗇𝖽 𝗆𝖾 𝗍𝗁𝖾 𝗌𝖾𝗋𝗂𝖾𝗌 𝗇𝖺𝗆𝖾.
+○ 𝖲𝗉𝖾𝗅𝗅𝗂𝗇𝗀 𝖬𝖺𝗍𝗍𝖾𝗋𝗌: 𝖯𝗅𝖾𝖺𝗌𝖾 𝗎𝗌𝖾 𝗍𝗁𝖾 𝖼𝗈𝗋𝗋𝖾𝖼𝗍 𝗈𝖿𝖿𝗂𝖼𝗂𝖺𝗅 𝗌𝗉𝖾𝗅𝗅𝗂𝗇𝗀<b></blockquote>
+
+<b>📡 𝖬𝖺𝗇𝖺𝗀𝖾𝖽 𝖡𝗒➠ <a href="https://t.me/RkCineHub">©RkCineHub™</a></b>"""
 
     HELP_TXT = """<b>ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʙᴜᴛᴛᴏɴꜱ ʙᴇʟᴏᴡ ᴛᴏ ɢᴇᴛ ᴅᴏᴄᴜᴍᴇɴᴛᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ꜱᴘᴇᴄɪꜰɪᴄ ᴍᴏᴅᴜʟᴇꜱ..</b>"""
 
@@ -121,7 +124,7 @@ User - {}"""
 
     FILE_CAPTION = """<b><u>⚠️DELETING IN 5minutes⚠️ғᴏʀᴡᴀʀᴅ ᴀɴᴅ sᴛᴀʀᴛ ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ ᴛʜᴇʀᴇ.</u></b>
     
-⚡<b>File uploaded by [Rk2xBotz™](https://t.me/rk2xbotz)</b>⚡
+⚡<b>File uploaded by [RkCineHub™](https://t.me/rkcinehub)</b>⚡
 
 𝙁𝙞𝙡𝙚 𝙉𝙖𝙢𝙚:<code><a>{file_name}</a></code>
 
@@ -133,17 +136,44 @@ User - {}"""
 
     OLD_ALRT_TXT = """ʏᴏᴜ ᴀʀᴇ ᴜsɪɴɢ ᴍʏ ᴏʟᴅ ᴍᴇssᴀɢᴇs..sᴇɴᴅ ᴀ ɴᴇᴡ ʀᴇǫᴜᴇsᴛ.."""
 
-    NO_RESULT_TXT = """<b>ᴛʜɪs ᴍᴇssᴀɢᴇ ɪs ɴᴏᴛ ʀᴇʟᴇᴀsᴇᴅ ᴏʀ ᴀᴅᴅᴇᴅ ɪɴ ᴍʏ ᴅᴀᴛᴀʙᴀsᴇ 🙄</b>"""
+    NO_RESULT_TXT = """<b>ᴛʜɪs ᴍᴇssᴀɢᴇ ɪs ɴᴏᴛ ʀᴇʟᴇᴀsᴇᴅ ᴏʀ ᴀᴅᴅᴇᴅ ɪɴ ᴍʏ ᴅᴀᴛᴀʙᴀsᴇ 🙄</b>
+    <b><u>👻 404 — No Results Found</u></b>
+<blockquote><b>f your spelling is correct and
+├ Results still don’t appear,
+├ Please submit a request below.
+Submit a request:
+├ #request Avengers 2019
+├ #request Vikings S02E05</b></blockquote>"""
 
     I_CUDNT = """🤧 𝗛𝗲𝗹𝗹𝗼 {}
 
-𝗜 𝗰𝗼𝘂𝗹𝗱𝗻'𝘁 𝗳𝗶𝗻𝗱 𝗮𝗻𝘆 𝗺𝗼𝘃𝗶𝗲 𝗼𝗿 𝘀𝗲𝗿𝗶𝗲𝘀 𝗶𝗻 𝘁𝗵𝗮𝘁 𝗻𝗮𝗺𝗲.. 😐"""
+𝗜 𝗰𝗼𝘂𝗹𝗱𝗻'𝘁 𝗳𝗶𝗻𝗱 𝗮𝗻𝘆 𝗺𝗼𝘃𝗶𝗲 𝗼𝗿 𝘀𝗲𝗿𝗶𝗲𝘀 𝗶𝗻 𝘁𝗵𝗮𝘁 𝗻𝗮𝗺𝗲.. 😐
+<b><u>👻 404 — No Results Found</u></b>
+<blockquote><b>f your spelling is correct and
+├ Results still don’t appear,
+├ Please submit a request below.
+Submit a request:
+├ #request Avengers 2019
+├ #request Vikings S02E05</b></blockquote>"""
 
     I_CUD_NT = """😑 𝗛𝗲𝗹𝗹𝗼 {}
 
-𝗜 𝗰𝗼𝘂𝗹𝗱𝗻'𝘁 𝗳𝗶𝗻𝗱 𝗮𝗻𝘆𝘁𝗵𝗶𝗻𝗴 𝗿𝗲𝗹𝗮𝘁𝗲𝗱 𝘁𝗼 𝘁𝗵𝗮𝘁 😞... 𝗰𝗵𝗲𝗰𝗸 𝘆𝗼𝘂𝗿 𝘀𝗽𝗲𝗹𝗹𝗶𝗻𝗴."""
+𝗜 𝗰𝗼𝘂𝗹𝗱𝗻'𝘁 𝗳𝗶𝗻𝗱 𝗮𝗻𝘆𝘁𝗵𝗶𝗻𝗴 𝗿𝗲𝗹𝗮𝘁𝗲𝗱 𝘁𝗼 𝘁𝗵𝗮𝘁 😞... 𝗰𝗵𝗲𝗰𝗸 𝘆𝗼𝘂𝗿 𝘀𝗽𝗲𝗹𝗹𝗶𝗻𝗴.
+<b><u>👻 404 — No Results Found</u></b>
+<blockquote><b>f your spelling is correct and
+├ Results still don’t appear,
+├ Please submit a request below.
+Submit a request:
+├ #request Avengers 2019
+├ #request Vikings S02E05</b></blockquote>"""
 
     CUDNT_FND = """🤧 𝗛𝗲𝗹𝗹𝗼 {}
+<blockquote><b>f your spelling is correct and
+├ Results still don’t appear,
+├ Please submit a request below.
+Submit a request:
+├ #request Avengers 2019
+├ #request Vikings S02E05</b></blockquote>
 
 𝗜 𝗰𝗼𝘂𝗹𝗱𝗻'𝘁 𝗳𝗶𝗻𝗱 𝗮𝗻𝘆𝘁𝗵𝗶𝗻𝗴 𝗿𝗲𝗹𝗮𝘁𝗲𝗱 𝘁𝗼 𝘁𝗵𝗮𝘁 𝗱𝗶𝗱 𝘆𝗼𝘂 𝗺𝗲𝗮𝗻 𝗮𝗻𝘆 𝗼𝗻𝗲 𝗼𝗳 𝘁𝗵𝗲𝘀𝗲 ?? 👇"""
 
@@ -455,6 +485,7 @@ Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀɴᴅ ᴍᴀᴋᴇ ᴍᴇ ᴀ�
 ʙʏ /details ᴄᴏᴍᴍᴀɴᴅ
 </blockquote>
 Iғ ʏᴏᴜ ʜᴀᴠᴇ ᴀɴʏ ᴅᴏᴜʙᴛs ᴘʟᴇᴀsᴇ <a href="https://telegram.dog/rk2xbotz">ᴄᴏɴᴛᴀᴄᴛ</a> ᴍʏ <a href="https://telegram.dog/Rk2xbotz">Z I Ƨ Ή Λ П ♡</a></b>"""
+
 
 
 
