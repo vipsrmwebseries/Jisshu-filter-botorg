@@ -23,12 +23,12 @@ CAPTION_LANGUAGES = [
 # ✅ PHOTO STYLE CAPTION (BLASTER HUB LIKE)
 UPDATE_CAPTION = """<blockquote><b> RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>✅ {title} {season_tag} #{kind}</b>
+<b>✅ {title} | #{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
 ⭐ <a href="{imdb_url}"><b>IMDb</b></a> | 🎭 <a href="{tmdb_url}"><b>TMDB</b></a>
-🎥 <b>Genre:</b> {genre}
+🎥 <b>Genres:</b> {genres}
 """
 
 notified_movies = set()
@@ -122,10 +122,9 @@ async def send_movie_update(bot, file_name, files):
 
     caption = UPDATE_CAPTION.format(
         title=title,
-        season_tag=season_tag,
         kind=kind,
         language=language,
-        genre=genre,
+        genres=genres,
         imdb_url=imdb_url,
         tmdb_url=tmdb_url
     )
@@ -185,4 +184,5 @@ async def movie_name_format(file_name):
         " ",
         re.sub(r"[._\-]", " ", file_name or "")
     ).strip()
+
 
