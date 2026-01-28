@@ -3,7 +3,6 @@ import re
 import asyncio
 import aiohttp
 from collections import defaultdict
-from typing import Optional
 
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -21,7 +20,6 @@ CAPTION_LANGUAGES = [
     "Russian","Japanese","Odia","Assamese","Urdu",
 ]
 
-# ✅ FINAL CAPTION
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
 <b>✅ {title} | {season_tag} | #{kind}</b>
@@ -34,7 +32,7 @@ UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 {quality_text}
 """
 
-POST_DELAY = 10
+POST_DELAY = 20
 
 notified_movies = set()
 processing_movies = set()
@@ -58,11 +56,12 @@ async def media(bot, message):
 
 async def queue_movie_file(bot, media):
     try:
-        file_name = await movie_name_format(media.file_name or "")
+        raw_name = media.file_name or ""
+        file_name = await movie_name_format(raw_name)
         caption = await movie_name_format(media.caption or "")
 
         quality = await get_qualities(caption)
-        jquality = await Jisshu_qualities(caption, media.file_name)
+        jquality = await Jisshu_qualities(caption, raw_name)
 
         language = (
             ", ".join(l for l in CAPTION_LANGUAGES if l.lower() in caption.lower())
@@ -72,14 +71,17 @@ async def queue_movie_file(bot, media):
         size = format_file_size(media.file_size)
         file_id, _ = unpack_new_file_id(media.file_id)
 
+        ep_match = re.search(r'(E|EP)(\d{1,3})', raw_name, re.I)
+        episode = f"E{ep_match.group(2)}" if ep_match else ""
+
         movie_files[file_name].append({
             "file_id": file_id,
             "quality": jquality or quality,
             "file_size": size,
             "language": language,
+            "episode": episode
         })
 
-        # ✅ SAME MOVIE → MULTIPLE FILES → ONE UPDATE
         if file_name in processing_movies:
             return
 
@@ -104,7 +106,7 @@ async def send_movie_update(bot, file_name, files):
     imdb = await get_imdb(file_name)
 
     title = imdb.get("title", file_name)
-    kind = imdb.get("kind", "MOVIE").upper().replace(" ", "_")
+    kind = imdb.get("kind", "TV_SERIES").upper().replace(" ", "_")
     if kind == "TV_SERIES":
         kind = "SERIES"
 
@@ -124,9 +126,10 @@ async def send_movie_update(bot, file_name, files):
     language = ", ".join(sorted(languages))
 
     quality_text = ""
-    for f in files:
+    for f in sorted(files, key=lambda x: x["episode"]):
+        ep = f["episode"] + " • " if f["episode"] else ""
         link = f"<a href='https://t.me/{temp.U_NAME}?start=file_0_{f['file_id']}'>{f['file_size']}</a>"
-        quality_text += f"📦 {f['quality']} : {link}\n"
+        quality_text += f"📦 {ep}{f['quality']} : {link}\n"
 
     poster = await fetch_movie_poster(title)
     poster = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
@@ -158,7 +161,8 @@ async def send_movie_update(bot, file_name, files):
     )
 
 
-# ✅ IMDb / TMDB DATA
+# ================= HELPERS ================= #
+
 async def get_imdb(name):
     try:
         data = await get_poster(await movie_name_format(name))
@@ -196,7 +200,7 @@ async def fetch_movie_poster(title: str):
 
 
 async def get_qualities(text):
-    for q in ["2160p", "1080p", "720p", "480p", "HDRip", "WEB-DL", "CAMRip"]:
+    for q in ["2160p", "1080p", "720p", "480p"]:
         if q.lower() in text.lower():
             return q
     return "720p"
@@ -209,9 +213,10 @@ async def Jisshu_qualities(text, name):
     return "720p"
 
 
-# ✅ CLEAN MOVIE NAME
+# ✅ SERIES + SEASON NAME (EPISODE REMOVED)
 async def movie_name_format(name: str):
     name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
+    name = re.sub(r'\b(E|EP)\d{1,3}\b', '', name, flags=re.I)
 
     remove_words = [
         "480p","720p","1080p","2160p","4k","10bit","8bit",
