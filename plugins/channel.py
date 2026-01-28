@@ -1,9 +1,10 @@
-# --| This code created by: Jisshu_bots & SilentXBotz |--#
+# --| SUPER MERGED CODE : RK CINEHUB × SILENTXBOTZ |--#
 
 import re
 import asyncio
 import aiohttp
 from collections import defaultdict
+from typing import Optional
 
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -13,6 +14,8 @@ from utils import *
 from database.users_chats_db import db
 from database.ia_filterdb import save_file, unpack_new_file_id
 
+
+# ================= CONFIG ================= #
 
 CAPTION_LANGUAGES = [
     "Bhojpuri","Hindi","Bengali","Tamil","English","Bangla","Telugu",
@@ -25,7 +28,7 @@ FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd3
 
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>Tɪᴛʟᴇ</b>: <code>{title}</code> <b>#{kind}</b>
+<b>Title</b>: <code>✅ {title}</code> <b>#{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
@@ -34,6 +37,7 @@ UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 """
 
 POST_DELAY = 8
+
 posted_keys = set()
 processing_keys = set()
 movie_files = defaultdict(list)
@@ -93,12 +97,12 @@ async def send_movie_update(bot, key, files):
     imdb = await get_imdb(key)
     tmdb = await get_tmdb(key)
 
-    # ---------- TITLE FIX ----------
-    base_title = tmdb.get("title") or imdb.get("title") or key
+    base_title = tmdb.get("title") or imdb.get("title") or await extract_clean_title(key)
 
     kind_raw = (tmdb.get("kind") or imdb.get("kind") or "").lower()
     kind = "SERIES" if ("tv" in kind_raw or "series" in kind_raw) else "MOVIE"
 
+    # SERIES → season only
     if kind == "SERIES":
         m = re.search(r"S(\d{1,2})", key, re.I)
         season = f" S{int(m.group(1)):02d}" if m else ""
@@ -114,13 +118,7 @@ async def send_movie_update(bot, key, files):
     languages = {f["language"] for f in files if f["language"] != "Not Available"}
     language = ", ".join(sorted(languages)) or "Not Available"
 
-    # ---------- POSTER FIX ----------
-    poster = (
-        imdb.get("backdrop")
-        or tmdb.get("backdrop")
-        or imdb.get("poster")
-        or FALLBACK_POSTER
-    )
+    poster = await get_best_poster(tmdb, imdb)
 
     caption = UPDATE_CAPTION.format(
         title=title,
@@ -145,6 +143,16 @@ async def send_movie_update(bot, key, files):
         parse_mode=enums.ParseMode.HTML,
         has_spoiler=True
     )
+
+
+# ================= POSTER (SILENTX STYLE) ================= #
+
+async def get_best_poster(tmdb: dict, imdb: dict) -> str:
+    if tmdb.get("backdrop"):
+        return tmdb["backdrop"]
+    if imdb.get("poster"):
+        return imdb["poster"]
+    return FALLBACK_POSTER
 
 
 # ================= TMDB ================= #
@@ -186,7 +194,7 @@ async def tmdb_genres(ids, media_type):
 
 async def get_imdb(name):
     try:
-        clean = await clean_title(name)
+        clean = await extract_clean_title(name)
         imdb = await get_poster(clean)
         if not imdb:
             return {}
@@ -198,43 +206,36 @@ async def get_imdb(name):
             "kind": imdb.get("kind"),
             "genres": genres,
             "url": imdb.get("url"),
-            "poster": imdb.get("poster") or imdb.get("cover url"),
-            "backdrop": imdb.get("backdrop")
+            "poster": imdb.get("poster") or imdb.get("cover url")
         }
     except:
         return {}
 
 
-# ================= HELPERS ================= #
+# ================= TITLE CLEAN ================= #
 
-async def make_clean_key(name: str):
+async def extract_clean_title(name: str):
+    name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
     name = re.sub(r'\bS\d{1,2}E\d{1,3}\b', '', name, flags=re.I)
     name = re.sub(r'\b(E|EP)\d{1,3}\b', '', name, flags=re.I)
 
-    m = re.search(r'\bS(\d{1,2})\b', name, flags=re.I)
-    season = f" S{int(m.group(1)):02d}" if m else ""
-
-    name = await clean_title(name)
-    return f"{name}{season}".strip()
-
-
-async def clean_title(name: str):
-    name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
-
-    remove = [
+    junk = [
         "480p","720p","1080p","2160p","4k","amzn","web","webdl","webrip",
         "hdrip","bluray","brrip","x264","x265","h264","h265","hevc",
-        "dd","ddp","aac","2ch","5.1","subs","dual","multi","cc"
+        "dd","ddp","aac","2ch","5.1","subs","dual","multi","dl","esub"
     ]
 
-    for w in remove:
-        name = re.sub(rf"\b{w}\b", "", name, flags=re.I)
+    for j in junk:
+        name = re.sub(rf"\b{j}\b", "", name, flags=re.I)
 
     name = re.sub(r"[._\-]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
 
-    m = re.search(r"(19\d{2}|20\d{2})", name)
-    if m:
-        name = name[: name.find(m.group(1)) + 4]
+    return name
 
-    return name.strip()
+
+async def make_clean_key(name: str):
+    m = re.search(r'\bS(\d{1,2})\b', name, flags=re.I)
+    season = f" S{int(m.group(1)):02d}" if m else ""
+    name = await extract_clean_title(name)
+    return f"{name}{season}".strip()
