@@ -1,10 +1,9 @@
 # --| This code created by: Jisshu_bots & SilentXBotz |--#
 import re
-import hashlib
 import asyncio
 import aiohttp
-from typing import Optional
 from collections import defaultdict
+from typing import Optional
 
 from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -22,14 +21,14 @@ CAPTION_LANGUAGES = [
     "Russian","Japanese","Odia","Assamese","Urdu",
 ]
 
-# ✅ PREMIUM CAPTION
+# ✅ FINAL CAPTION (REAL GENRES)
 UPDATE_CAPTION = """<b>RK CINEHUB #PREMIUM</b>
 
-<b>✅ {title} {season_tag} #{kind}</b>
+<b>✅ {title} | {season_tag} | #{kind}</b>
 
 🎙 <b>{language}</b>
 
-⭐ <b>IMDb</b> | 🎭 <b>TMDB</b>
+⭐ <a href="{imdb_url}"><b>IMDb</b></a> | 🎭 <a href="{tmdb_url}"><b>TMDB</b></a>
 🎥 <b>Genre:</b> {genre}
 
 {quality_text}
@@ -76,7 +75,6 @@ async def queue_movie_file(bot, media):
             "file_id": file_id,
             "quality": jquality or quality,
             "file_size": size,
-            "caption": caption,
             "language": language,
         })
 
@@ -107,7 +105,13 @@ async def send_movie_update(bot, file_name, files):
     if kind == "TV_SERIES":
         kind = "SERIES"
 
-    genre = imdb.get("genres", "Drama")
+    # ✅ REAL GENRES (IMDb → TMDB → fallback)
+    genre = imdb.get("genres")
+    if not genre:
+        genre = "N/A"
+
+    imdb_url = imdb.get("imdb_url") or f"https://www.imdb.com/find?q={title.replace(' ', '+')}"
+    tmdb_url = imdb.get("tmdb_url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
 
     season_tag = ""
     sm = re.search(r"S(\d{1,2})", file_name, re.I)
@@ -133,17 +137,16 @@ async def send_movie_update(bot, file_name, files):
         kind=kind,
         language=language,
         genre=genre,
-        quality_text=quality_text
+        quality_text=quality_text,
+        imdb_url=imdb_url,
+        tmdb_url=tmdb_url
     )
 
-    # ✅ INLINE BUTTON (Tap to Search)
     buttons = InlineKeyboardMarkup(
-        [[
-            InlineKeyboardButton(
-                "🔍 Tap to Search",
-                url=f"https://t.me/Rk2x_Request"
-            )
-        ]]
+        [[InlineKeyboardButton(
+            "🔍 Tap to Search",
+            url=f"https://t.me/Rk2x_Request"
+        )]]
     )
 
     channel = await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL
@@ -158,15 +161,23 @@ async def send_movie_update(bot, file_name, files):
     )
 
 
+# ✅ IMDb / TMDB DATA (REAL GENRES)
 async def get_imdb(name):
     try:
         data = await get_poster(await movie_name_format(name))
         if not data:
             return {}
+
+        genres = data.get("genres")
+        if isinstance(genres, list):
+            genres = ", ".join(genres)
+
         return {
             "title": data.get("title"),
             "kind": data.get("kind"),
-            "genres": ", ".join(data.get("genres", []))
+            "genres": genres,              # ✅ REAL
+            "imdb_url": data.get("url"),
+            "tmdb_url": data.get("tmdb_url"),
         }
     except:
         return {}
@@ -201,8 +212,24 @@ async def Jisshu_qualities(text, name):
     return "720p"
 
 
-async def movie_name_format(name):
-    return re.sub(r"[.@#_\-\[\]\(\)]", " ", name).strip()
+# ✅ CLEAN MOVIE NAME + YEAR
+async def movie_name_format(name: str):
+    name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
+
+    remove_words = [
+        "480p","720p","1080p","2160p","4k","10bit","8bit",
+        "bluray","brrip","webrip","webdl","web-dl","hdrip",
+        "x264","x265","hevc","aac","dd","ddp","dts","atmos",
+        "hindi","english","tamil","telugu","dual","multi",
+        "org","proper","repack","bms","esub"
+    ]
+
+    for w in remove_words:
+        name = re.sub(rf"\b{w}\b", "", name, flags=re.I)
+
+    name = re.sub(r"[._\-]", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
 
 
 def format_file_size(size):
