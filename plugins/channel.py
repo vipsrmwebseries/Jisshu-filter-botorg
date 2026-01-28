@@ -24,7 +24,7 @@ CAPTION_LANGUAGES = [
     "Russian","Japanese","Odia","Assamese","Urdu"
 ]
 
-# 🔥 FIXED LANDSCAPE FALLBACK
+# LANDSCAPE FALLBACK
 FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
 
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
@@ -34,7 +34,8 @@ UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 <blockquote>🎙 <b>{language}</b></blockquote>
 
 ⭐ <a href="{imdb_url}"><b>IMDb</b></a> | 🎭 <a href="{tmdb_url}"><b>TMDB</b></a>
-🎥 <b>Genres:</b> {genres}
+🎥 <b>Genres: {genres} </b>
+📅 <b>Year: {year} </b>
 """
 
 POST_DELAY = 8
@@ -119,7 +120,8 @@ async def send_movie_update(bot, key, files):
     languages = {f["language"] for f in files if f["language"] != "Not Available"}
     language = ", ".join(sorted(languages)) or "Not Available"
 
-    # 🔥 LANDSCAPE POSTER ONLY (IMDb BLOCKED)
+    year = tmdb.get("year") or imdb.get("year") or "N/A"
+
     poster = await get_best_poster(tmdb)
 
     caption = UPDATE_CAPTION.format(
@@ -128,7 +130,8 @@ async def send_movie_update(bot, key, files):
         language=language,
         genres=genres,
         imdb_url=imdb_url,
-        tmdb_url=tmdb_url
+        tmdb_url=tmdb_url,
+        year=year
     )
 
     buttons = InlineKeyboardMarkup(
@@ -147,18 +150,12 @@ async def send_movie_update(bot, key, files):
     )
 
 
-# ================= POSTER (SILENTX STYLE FIX) ================= #
+# ================= POSTER ================= #
 
 async def get_best_poster(tmdb: dict) -> str:
-    """
-    Always LANDSCAPE poster
-    IMDb poster completely blocked
-    """
-
     backdrop = tmdb.get("backdrop")
     if backdrop and backdrop.startswith("http"):
         return backdrop
-
     return FALLBACK_POSTER
 
 
@@ -183,8 +180,8 @@ async def get_tmdb(query):
                     "kind": "SERIES" if media_type == "tv" else "MOVIE",
                     "genres": genres,
                     "url": f"https://www.themoviedb.org/{media_type}/{item['id']}",
-                    # 🔥 FIXED SIZE (NOT ULTRA HD)
-                    "backdrop": f"https://image.tmdb.org/t/p/w780{item['backdrop_path']}" if item.get("backdrop_path") else None
+                    "backdrop": f"https://image.tmdb.org/t/p/w780{item['backdrop_path']}" if item.get("backdrop_path") else None,
+                    "year": (item.get("release_date") or item.get("first_air_date") or "")[:4]
                 }
     return {}
 
@@ -213,7 +210,8 @@ async def get_imdb(name):
             "title": imdb.get("title"),
             "kind": imdb.get("kind"),
             "genres": genres,
-            "url": imdb.get("url")
+            "url": imdb.get("url"),
+            "year": imdb.get("year")
         }
     except:
         return {}
