@@ -22,18 +22,21 @@ CAPTION_LANGUAGES = [
     "Arabic","Portuguese","Russian","Japanese","Odia","Assamese","Urdu"
 ]
 
-UPDATE_CAPTION = """<blockquote><b>𝖭𝖤𝖶 {} 𝖠𝖣𝖣𝖤𝖣 ✅</b></blockquote>
+DEFAULT_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
 
-🎬 <code>{}</code> | <b>({})</b>
+UPDATE_CAPTION = """<blockquote><b>𝖭𝖤𝖶 {kind} 𝖠𝖣𝖣𝖤𝖣 ✅</b></blockquote>
 
-🎥 <b>Genres: {}</b>
+🎬 <code>{title}</code> | <b>({year})</b>
 
-⭐ <b>IMDb:</b> <a href="{imdb_url}">{imdb_rating}</a> | 🎭 <b>TMDB:</b> <a href="{tmdb_url}">{tmdb_rating}</a>
+🎥 <b>Genres:</b> {genres}
 
-🔰 <b>Quality: {}</b>
-🎧 <b>Audio: {}</b>
+⭐ <b>IMDb:</b> <a href="{imdb_url}">{imdb_rating}</a>
 
-<blockquote><b>⚡Powered by @RkCineHub</b></blockquote>
+🔰 <b>Quality:</b> {quality}
+
+🎧 <b>Audio:</b> {language}
+
+<blockquote><b>⚡ Powered by @RkCineHub</b></blockquote>
 """
 
 POST_DELAY = 10
@@ -102,25 +105,18 @@ async def send_movie_update(bot, file_name, files):
     notified_movies.add(file_name)
 
     imdb = await get_imdb(file_name)
-    tmdb = await get_tmdb(file_name)
 
-    title = imdb.get("title") or tmdb.get("title") or file_name
-    year = imdb.get("year") or tmdb.get("year") or files[0]["year"] or "N/A"
+    title = imdb.get("title") or file_name
+    year = imdb.get("year") or files[0]["year"] or "N/A"
 
     imdb_url = imdb.get("url", "https://www.imdb.com")
     imdb_rating = imdb.get("rating", "N/A")
-    imdb_genres = imdb.get("genres", "")
+    genres = imdb.get("genres", "N/A")
+    kind = imdb.get("kind", "Movie").upper()
 
-    tmdb_url = tmdb.get("url", "https://www.themoviedb.org")
-    tmdb_rating = tmdb.get("rating", "N/A")
-    tmdb_genres = tmdb.get("genres", "")
-
-    # 🔥 FINAL GENRES (IMDb priority, fallback TMDB)
-    genres = imdb_genres or tmdb_genres or "N/A"
-
-    kind = (imdb.get("kind") or tmdb.get("kind") or "MOVIE").upper()
-
-    poster = await fetch_movie_poster(title, year)
+    poster = await fetch_movie_poster(title)
+    if not poster:
+        poster = DEFAULT_POSTER
 
     language = ", ".join({f["language"] for f in files})
     quality = ", ".join({f["quality"] for f in files})
@@ -132,8 +128,6 @@ async def send_movie_update(bot, file_name, files):
         genres=genres,
         imdb_url=imdb_url,
         imdb_rating=imdb_rating,
-        tmdb_url=tmdb_url,
-        tmdb_rating=tmdb_rating,
         quality=quality,
         language=language
     )
@@ -146,10 +140,10 @@ async def send_movie_update(bot, file_name, files):
 
     await bot.send_photo(
         chat_id=channel,
-        photo=poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg",
+        photo=poster,
         caption=caption,
         parse_mode=enums.ParseMode.HTML,
-        has_spoiler=True, 
+        has_spoiler=True,
         reply_markup=buttons
     )
 
@@ -176,41 +170,21 @@ async def get_imdb(name):
         return {}
 
 
-# ================= TMDB ================= #
-
-async def get_tmdb(query):
-    async with aiohttp.ClientSession() as session:
-        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}"
-        async with session.get(url) as r:
-            if r.status != 200:
-                return {}
-            data = await r.json()
-            if not data.get("results"):
-                return {}
-
-            item = data["results"][0]
-            return {
-                "title": item.get("title"),
-                "year": (item.get("release_date") or "")[:4],
-                "rating": item.get("vote_average", "N/A"),
-                "url": f"https://www.themoviedb.org/movie/{item['id']}",
-                "genres": ", ".join(item.get("genre_ids", [])),
-                "kind": "Movie"
-            }
-
-
 # ================= POSTER ================= #
 
-async def fetch_movie_poster(title: str, year: Optional[str] = None):
+async def fetch_movie_poster(title: str) -> Optional[str]:
     async with aiohttp.ClientSession() as session:
-        url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
-        async with session.get(url) as r:
-            if r.status != 200:
-                return None
-            data = await r.json()
-            for k in ["jisshu-2", "jisshu-3", "jisshu-4"]:
-                if data.get(k):
-                    return data[k][0]
+        try:
+            url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
+            async with session.get(url, timeout=5) as r:
+                if r.status != 200:
+                    return None
+                data = await r.json()
+                for k in ["jisshu-2", "jisshu-3", "jisshu-4"]:
+                    if data.get(k):
+                        return data[k][0]
+        except:
+            return None
     return None
 
 
