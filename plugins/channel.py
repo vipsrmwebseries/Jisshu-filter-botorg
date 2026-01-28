@@ -131,7 +131,7 @@ async def send_movie_update(bot, file_name, files):
     )
 
     buttons = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🔍 Tap to Search", url=SEARCH_LINK)]]
+        [[InlineKeyboardButton("🔍 Tap to Search", url="https://t.me/Rk2x_Request")]]
     )
 
     channel = await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL
@@ -141,7 +141,8 @@ async def send_movie_update(bot, file_name, files):
         photo=poster,
         caption=caption,
         reply_markup=buttons,
-        parse_mode=enums.ParseMode.HTML
+        parse_mode=enums.ParseMode.HTML,
+        has_spoiler=True
     )
 
 
@@ -184,3 +185,4 @@ async def movie_name_format(file_name):
         " ",
         re.sub(r"[._\-]", " ", file_name or "")
     ).strip()
+
