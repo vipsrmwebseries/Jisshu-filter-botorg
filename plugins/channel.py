@@ -1,4 +1,5 @@
 # --| This code created by: Jisshu_bots & SilentXBotz |--#
+
 import re
 import asyncio
 import aiohttp
@@ -14,13 +15,12 @@ from database.ia_filterdb import save_file, unpack_new_file_id
 
 
 CAPTION_LANGUAGES = [
-    "Bhojpuri","Hindi","Bengali","Tamil","English","Bangla","Telugu",
-    "Malayalam","Kannada","Marathi","Punjabi","Gujarati","Korean",
-    "Spanish","French","German","Chinese","Arabic","Portuguese",
-    "Russian","Japanese","Odia","Assamese","Urdu",
+    "Bhojpuri","Hindi","Bengali","Tamil","English","Telugu","Malayalam",
+    "Kannada","Marathi","Punjabi","Gujarati","Korean","Spanish",
+    "French","German","Chinese","Arabic","Portuguese","Russian",
+    "Japanese","Odia","Assamese","Urdu"
 ]
 
-# ✅ FINAL CAPTION (IMDb BASED, NO QUALITY TEXT)
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
 <b>✅ {title} {season_tag} | #{kind}</b>
@@ -66,10 +66,7 @@ async def queue_movie_file(bot, media):
 
         file_id, _ = unpack_new_file_id(media.file_id)
 
-        movie_files[key_name].append({
-            "file_id": file_id,
-            "language": language
-        })
+        movie_files[key_name].append({"file_id": file_id, "language": language})
 
         if key_name in processing_movies:
             return
@@ -84,7 +81,7 @@ async def queue_movie_file(bot, media):
 
     except Exception as e:
         processing_movies.discard(key_name)
-        await bot.send_message(LOG_CHANNEL, f"Update Error:\n<code>{e}</code>")
+        await bot.send_message(LOG_CHANNEL, f"<code>{e}</code>")
 
 
 async def send_movie_update(bot, key_name, files):
@@ -94,19 +91,11 @@ async def send_movie_update(bot, key_name, files):
 
     imdb = await get_imdb(key_name)
 
-    # ✅ TITLE FROM IMDb (SOURCE OF TRUTH)
     title = imdb.get("title") or key_name
-
-    # ✅ KIND FROM IMDb (SOURCE OF TRUTH)
     imdb_kind = (imdb.get("kind") or "").lower()
-    if imdb_kind == "movie":
-        kind = "MOVIE"
-    elif imdb_kind in ["tv series", "tv mini series"]:
-        kind = "SERIES"
-    else:
-        kind = "MOVIE"  # safe fallback
 
-    genre = imdb.get("genres") or "N/A"
+    kind = "SERIES" if "tv" in imdb_kind else "MOVIE"
+    genre = imdb.get("genres") or "Unknown"
 
     imdb_url = imdb.get("imdb_url") or f"https://www.imdb.com/find?q={title.replace(' ', '+')}"
     tmdb_url = imdb.get("tmdb_url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
@@ -123,7 +112,8 @@ async def send_movie_update(bot, key_name, files):
     language = ", ".join(sorted(languages))
 
     poster = await fetch_movie_poster(title)
-    poster = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
+    if not poster:
+        poster = "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
 
     caption = UPDATE_CAPTION.format(
         title=title,
@@ -155,17 +145,19 @@ async def send_movie_update(bot, key_name, files):
 
 async def get_imdb(name):
     try:
-        data = await get_poster(await movie_name_format(name))
+        data = await get_poster(name)
         if not data:
             return {}
 
         genres = data.get("genres")
         if isinstance(genres, list):
             genres = ", ".join(genres)
+        if not genres:
+            genres = "Unknown"
 
         return {
-            "title": data.get("title"),
-            "kind": data.get("kind"),          # movie / tv series
+            "title": data.get("title") or name,
+            "kind": data.get("kind") or "movie",
             "genres": genres,
             "imdb_url": data.get("url"),
             "tmdb_url": data.get("tmdb_url"),
@@ -174,7 +166,7 @@ async def get_imdb(name):
         return {}
 
 
-async def fetch_movie_poster(title: str):
+async def fetch_movie_poster(title):
     async with aiohttp.ClientSession() as session:
         url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
         try:
@@ -189,23 +181,20 @@ async def fetch_movie_poster(title: str):
     return None
 
 
-# ✅ CLEAN NAME ONLY FOR SEARCH / KEY (NOT DISPLAY)
-async def movie_name_format(name: str):
+async def movie_name_format(name):
     name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
 
-    # REMOVE SEASON / EPISODE
+    year = re.search(r"(19\d{2}|20\d{2})", name)
+    year = year.group(1) if year else ""
+
     name = re.sub(r'\bS\d{1,2}E?\d{0,2}\b', '', name, flags=re.I)
     name = re.sub(r'\b(E|EP)\d{1,3}\b', '', name, flags=re.I)
 
     remove_words = [
-        "480p","720p","1080p","2160p","4k","8bit","10bit",
-        "bluray","brrip","webrip","webdl","web-dl","hdrip",
-        "x264","x265","h264","hevc",
-        "aac","dd","ddp","ddp5","ddp5.1","dts","atmos",
-        "amzn","nf","dsnp",
-        "audio","dub","subs","msubs","esub",
-        "hindi","english","tamil","telugu","kannada","malayalam",
-        "dual","multi","org","proper","repack","bms"
+        "480p","720p","1080p","2160p","4k","bluray","brrip",
+        "webrip","webdl","hdrip","x264","x265","h264","hevc",
+        "aac","dd","ddp","dts","atmos","amzn","nf","dsnp",
+        "audio","dub","subs","dual","multi","org","repack"
     ]
 
     for w in remove_words:
@@ -213,4 +202,8 @@ async def movie_name_format(name: str):
 
     name = re.sub(r"[._\-]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
+
+    if year and year not in name:
+        name = f"{name} {year}"
+
     return name
