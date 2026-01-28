@@ -19,10 +19,11 @@ CAPTION_LANGUAGES = [
     "Bhojpuri","Hindi","Bengali","Tamil","English","Bangla","Telugu",
     "Malayalam","Kannada","Marathi","Punjabi","Gujarati","Korean",
     "Spanish","French","German","Chinese","Arabic","Portuguese",
-    "Russian","Japanese","Odia","Assamese","Urdu",
+    "Russian","Japanese","Odia","Assamese","Urdu"
 ]
 
-# 🔥 BLASTER HUB STYLE CAPTION
+FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
+
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
 <code>✅ {title}{season_tag}</code> <b>#{kind}</b>
@@ -34,8 +35,6 @@ UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 """
 
 POST_DELAY = 8
-
-# duplicate control
 posted_keys = set()
 processing_keys = set()
 movie_files = defaultdict(list)
@@ -47,7 +46,6 @@ media_filter = filters.document | filters.video | filters.audio
 
 @Client.on_message(filters.chat(CHANNELS) & media_filter)
 async def media(bot, message):
-    bot_id = bot.me.id
     media = getattr(message, message.media.value, None)
     if not media:
         return
@@ -56,8 +54,10 @@ async def media(bot, message):
         return
 
     media.caption = message.caption or ""
-    sts = await save_file(media)
-    if sts != "suc" or not await db.get_send_movie_update_status(bot_id):
+    if await save_file(media) != "suc":
+        return
+
+    if not await db.get_send_movie_update_status(bot.me.id):
         return
 
     await queue_movie_file(bot, media)
@@ -65,7 +65,7 @@ async def media(bot, message):
 
 async def queue_movie_file(bot, media):
     raw = media.file_name or ""
-    key = await series_key_format(raw)   # 🔥 EPISODE IGNORED
+    key = await series_key_format(raw)
     caption = media.caption or ""
 
     language = (
@@ -92,36 +92,29 @@ async def queue_movie_file(bot, media):
 # ================= POST ================= #
 
 async def send_movie_update(bot, key, files):
-    imdb_data = await get_imdb(key)
-    tmdb_data = await get_tmdb(key)
+    imdb = await get_imdb(key)
+    tmdb = await get_tmdb(key)
 
-    title = tmdb_data.get("title") or imdb_data.get("title") or key
+    title = tmdb.get("title") or imdb.get("title") or key
 
-    kind_raw = (tmdb_data.get("kind") or imdb_data.get("kind") or "").lower()
-    kind = "SERIES" if ("tv" in kind_raw or "series" in kind_raw) else "MOVIE"
+    kind_raw = (tmdb.get("kind") or imdb.get("kind") or "").lower()
+    kind = "SERIES" if "tv" in kind_raw else "MOVIE"
 
-    genres = tmdb_data.get("genres") or imdb_data.get("genres") or "N/A"
+    genres = tmdb.get("genres") or imdb.get("genres") or "N/A"
 
-    imdb_url = imdb_data.get("url") or f"https://www.imdb.com/find?q={title.replace(' ', '+')}"
-    tmdb_url = tmdb_data.get("url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
+    imdb_url = imdb.get("url") or f"https://www.imdb.com/find?q={title.replace(' ', '+')}"
+    tmdb_url = tmdb.get("url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
 
     season_tag = ""
     if kind == "SERIES":
-        sm = re.search(r"S(\d{1,2})", key, re.I)
-        if sm:
-            season_tag = f" S{int(sm.group(1)):02d}"
+        m = re.search(r"S(\d{1,2})", key, re.I)
+        if m:
+            season_tag = f" S{int(m.group(1)):02d}"
 
     languages = set(f["language"] for f in files if f["language"] != "Not Available")
     language = ", ".join(sorted(languages)) or "Not Available"
 
-    # 🔥 POSTER PRIORITY: IMDb → TMDB → API → Default
-    poster = await fetch_imdb_poster(title)
-    if not poster:
-        poster = tmdb_data.get("poster")
-    if not poster:
-        poster = await fetch_movie_poster(title)
-    if not poster:
-        poster = "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
+    poster = tmdb.get("backdrop") or FALLBACK_POSTER
 
     caption = UPDATE_CAPTION.format(
         title=title,
@@ -145,11 +138,11 @@ async def send_movie_update(bot, key, files):
         caption=caption,
         reply_markup=buttons,
         parse_mode=enums.ParseMode.HTML,
-        has_spoiler=True   # 👈 PHOTO SPOILER ON
+        has_spoiler=True
     )
 
 
-# ================= TMDB (PRIMARY GENRES) ================= #
+# ================= TMDB ================= #
 
 async def get_tmdb(query):
     async with aiohttp.ClientSession() as session:
@@ -170,7 +163,7 @@ async def get_tmdb(query):
                     "kind": "SERIES" if media_type == "tv" else "MOVIE",
                     "genres": genres,
                     "url": f"https://www.themoviedb.org/{media_type}/{item['id']}",
-                    "poster": f"https://image.tmdb.org/t/p/w500{item.get('poster_path')}"
+                    "backdrop": f"https://image.tmdb.org/t/p/w1280{item.get('backdrop_path')}" if item.get("backdrop_path") else None
                 }
     return {}
 
@@ -184,7 +177,7 @@ async def tmdb_genres(ids, media_type):
             return ", ".join(mp[i] for i in ids if i in mp)
 
 
-# ================= IMDb (METADATA + POSTER) ================= #
+# ================= IMDb ================= #
 
 async def get_imdb(name):
     try:
@@ -199,48 +192,20 @@ async def get_imdb(name):
             "title": imdb.get("title"),
             "kind": imdb.get("kind"),
             "genres": genres,
-            "url": imdb.get("url"),
-            "poster": imdb.get("poster") or imdb.get("cover url"),
+            "url": imdb.get("url")
         }
     except:
         return {}
 
 
-async def fetch_imdb_poster(title: str) -> Optional[str]:
-    try:
-        imdb = await get_poster(title)
-        if not imdb:
-            return None
-        return imdb.get("poster") or imdb.get("cover url")
-    except:
-        return None
-
-
 # ================= HELPERS ================= #
 
-async def fetch_movie_poster(title: str) -> Optional[str]:
-    async with aiohttp.ClientSession() as session:
-        url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
-        try:
-            async with session.get(url, timeout=5) as res:
-                if res.status == 200:
-                    data = await res.json()
-                    for k in ["jisshu-2", "jisshu-3", "jisshu-4"]:
-                        if data.get(k):
-                            return data[k][0]
-        except:
-            pass
-    return None
-
-
-# 🔥 SERIES KEY (EPISODE IGNORED)
 async def series_key_format(name: str):
     name = re.sub(r'\b(E|EP)\d{1,3}\b', '', name, flags=re.I)
     name = re.sub(r'\bS(\d{1,2})E?\d*\b', r'S\1', name, flags=re.I)
     return await clean_title(name)
 
 
-# 🔥 CLEAN TITLE
 async def clean_title(name: str):
     name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
 
@@ -261,4 +226,3 @@ async def clean_title(name: str):
         name = name[: name.find(m.group(1)) + 4]
 
     return name.strip()
-
