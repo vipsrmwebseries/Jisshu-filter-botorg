@@ -43,15 +43,13 @@ CAPTION_LANGUAGES = [
 
 UPDATE_CAPTION = """<blockquote><b>NEW {} ADDED ✅</b></blockquote>
 
-<b> Tɪᴛʟᴇ :<b> <code>{}</code>
-<b> Yᴇᴀʀ :{}</b>
+<b>📝 Tɪᴛʟᴇ :</b> <code>{}</code>
 
-🔰 <b>Qᴜᴀʟɪᴛʏ : {}</b>
-🎧 <b>Aᴜᴅɪᴏ : {}</b>
+<b>📟 Yᴇᴀʀ :{}</b>
 
-<blockquote><b>✨ Telegram Files ✨</b></blockquote>
+🎞 <b>Qᴜᴀʟɪᴛʏ : {}</b>
 
-<b>{}</b>
+🎥 <b>Aᴜᴅɪᴏ : {}</b>
 
 <blockquote><b>⚡ Powered by @RkCineHub</b></blockquote>"""
 
@@ -199,7 +197,7 @@ async def send_movie_update(bot, file_name, files):
                 line = f"📦 {quality} : " + " | ".join(links)
                 quality_text += line + "\n"
 
-        image_url = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
+        image_url = poster or "https://graph.org/file/919c052667ea70e534958-68202ea1b8cf2155ee.jpg"
         full_caption = UPDATE_CAPTION.format(kind, title, year, files[0]['quality'], language, quality_text)
 
         keyboard = InlineKeyboardMarkup(
@@ -350,4 +348,5 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
 
