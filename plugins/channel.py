@@ -1,9 +1,9 @@
 # --| This code created by: Jisshu_bots & SilentXBotz |--#
-# --| Final Enhanced & Verified by: Jarvis |--#
-
 import re
+import hashlib
 import asyncio
 import aiohttp
+from typing import Optional
 from collections import defaultdict
 
 from pyrogram import Client, filters, enums
@@ -15,91 +15,85 @@ from database.users_chats_db import db
 from database.ia_filterdb import save_file, unpack_new_file_id
 
 
-# ================= CONFIG ================= #
-
 CAPTION_LANGUAGES = [
-    "Bhojpuri","Hindi","Bengali","Tamil","English","Bangla",
-    "Telugu","Malayalam","Kannada","Marathi","Punjabi","Gujarati",
+    "Bhojpuri","Hindi","Bengali","Tamil","English","Bangla","Telugu",
+    "Malayalam","Kannada","Marathi","Punjabi","Gujarati","Korean",
     "Spanish","French","German","Chinese","Arabic","Portuguese",
-    "Russian","Japanese","Urdu"
+    "Russian","Japanese","Odia","Assamese","Urdu",
 ]
 
-POST_DELAY = 10
+# ✅ PREMIUM CAPTION
+UPDATE_CAPTION = """<b>RK CINEHUB #PREMIUM</b>
 
-UPDATE_CAPTION = """<blockquote><b>𝖭𝖤𝖶 {} 𝖠𝖣𝖣𝖤𝖣 ✅</b></blockquote>
+<b>✅ {title} {season_tag} #{kind}</b>
 
-🎬 <code>{}</code> | {}
-🔰 <b>Quality: {}</b>
-🎧 <b>Audio: {}</b>
+🎙 <b>{language}</b>
 
-<blockquote><b>✨ Telegram Files ✨</b></blockquote>
+⭐ <b>IMDb</b> | 🎭 <b>TMDB</b>
+🎥 <b>Genre:</b> {genre}
 
-{}
-
-<blockquote><b>〽️ Powered by➠ @RkCineHub</b></blockquote>
+{quality_text}
 """
 
-REQUEST_BUTTON = InlineKeyboardMarkup(
-    [[InlineKeyboardButton("🎬 MOVIE REQUEST GROUP", url="https://t.me/Rk2x_Request")]]
-)
+POST_DELAY = 10
+notified_movies = set()
+processing_movies = set()
+movie_files = defaultdict(list)
 
 media_filter = filters.document | filters.video | filters.audio
 
-notified_movies = set()
-movie_files = defaultdict(list)
-processing_movies = set()
-
-
-# ================= MEDIA HANDLER ================= #
 
 @Client.on_message(filters.chat(CHANNELS) & media_filter)
-async def media_handler(bot, message):
+async def media(bot, message):
     media = getattr(message, message.media.value, None)
     if not media:
         return
 
-    media.file_type = message.media.value
-    media.caption = message.caption
+    if media.mime_type in ["video/mp4", "video/x-matroska", "document/mp4"]:
+        media.caption = message.caption or ""
+        sts = await save_file(media)
+        if sts == "suc" and await db.get_send_movie_update_status(bot.me.id):
+            await queue_movie_file(bot, media)
 
-    if await save_file(media) == "suc" and await db.get_send_movie_update_status(bot.me.id):
-        await queue_movie_file(bot, media)
-
-
-# ================= QUEUE FILE ================= #
 
 async def queue_movie_file(bot, media):
-    file_name = await movie_name_format(media.file_name)
-    caption = await movie_name_format(media.caption or "")
+    try:
+        file_name = await movie_name_format(media.file_name or "")
+        caption = await movie_name_format(media.caption or "")
 
-    year_match = re.search(r"\b(19|20)\d{2}\b", caption)
-    year = year_match.group(0) if year_match else None
+        quality = await get_qualities(caption)
+        jquality = await Jisshu_qualities(caption, media.file_name)
 
-    quality = detect_quality(caption + " " + media.file_name)
-    language = ", ".join([l for l in CAPTION_LANGUAGES if l.lower() in caption.lower()]) or "Not Idea"
+        language = (
+            ", ".join(l for l in CAPTION_LANGUAGES if l.lower() in caption.lower())
+            or "Not Available"
+        )
 
-    file_id, _ = unpack_new_file_id(media.file_id)
+        size = format_file_size(media.file_size)
+        file_id, _ = unpack_new_file_id(media.file_id)
 
-    movie_files[file_name].append({
-        "file_id": file_id,
-        "quality": quality,
-        "file_size": format_file_size(media.file_size),
-        "language": language,
-        "year": year
-    })
+        movie_files[file_name].append({
+            "file_id": file_id,
+            "quality": jquality or quality,
+            "file_size": size,
+            "caption": caption,
+            "language": language,
+        })
 
-    if file_name in processing_movies:
-        return
+        if file_name in processing_movies:
+            return
 
-    processing_movies.add(file_name)
-    await asyncio.sleep(POST_DELAY)
+        processing_movies.add(file_name)
+        await asyncio.sleep(POST_DELAY)
 
-    await send_movie_update(bot, file_name, movie_files[file_name])
+        await send_movie_update(bot, file_name, movie_files[file_name])
+        movie_files.pop(file_name, None)
+        processing_movies.remove(file_name)
 
-    movie_files.pop(file_name, None)
-    processing_movies.discard(file_name)
+    except Exception as e:
+        processing_movies.discard(file_name)
+        await bot.send_message(LOG_CHANNEL, f"Update Error:\n<code>{e}</code>")
 
-
-# ================= SEND UPDATE ================= #
 
 async def send_movie_update(bot, file_name, files):
     if file_name in notified_movies:
@@ -107,105 +101,113 @@ async def send_movie_update(bot, file_name, files):
     notified_movies.add(file_name)
 
     imdb = await get_imdb(file_name)
-    title = imdb.get("title", file_name)
-    kind = imdb.get("kind", "MOVIE").upper()
-    kind = "SERIES" if kind == "TV_SERIES" else "MOVIE"
 
-    tmdb = await fetch_tmdb_hd(title, files[0]["year"])
-    poster = tmdb.get("poster")
+    title = imdb.get("title", file_name)
+    kind = imdb.get("kind", "MOVIE").upper().replace(" ", "_")
+    if kind == "TV_SERIES":
+        kind = "SERIES"
+
+    genre = imdb.get("genres", "Drama")
+
+    season_tag = ""
+    sm = re.search(r"S(\d{1,2})", file_name, re.I)
+    if sm:
+        season_tag = f"S{int(sm.group(1)):02d}"
+
+    languages = set()
+    for f in files:
+        languages.update(f["language"].split(", "))
+    language = ", ".join(sorted(languages))
 
     quality_text = ""
     for f in files:
-        quality_text += (
-            f"📦 {f['quality']} : "
-            f"<a href='https://t.me/{temp.U_NAME}?start=file_0_{f['file_id']}'>"
-            f"{f['file_size']}</a>\n"
-        )
+        link = f"<a href='https://t.me/{temp.U_NAME}?start=file_0_{f['file_id']}'>{f['file_size']}</a>"
+        quality_text += f"📦 {f['quality']} : {link}\n"
+
+    poster = await fetch_movie_poster(title)
+    poster = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
 
     caption = UPDATE_CAPTION.format(
-        kind,
-        title,
-        files[0]["year"] or "",
-        files[0]["quality"],
-        files[0]["language"],
-        quality_text
+        title=title,
+        season_tag=season_tag,
+        kind=kind,
+        language=language,
+        genre=genre,
+        quality_text=quality_text
     )
 
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("☑ VIEW HD PHOTO", callback_data=f"hdphoto|{title}|{files[0]['year']}")],
-        [InlineKeyboardButton("🎬 MOVIE REQUEST GROUP", url="https://t.me/Rk2x_Request")]
-    ])
+    # ✅ INLINE BUTTON (Tap to Search)
+    buttons = InlineKeyboardMarkup(
+        [[
+            InlineKeyboardButton(
+                "🔍 Tap to Search",
+                url=f"https://t.me/Rk2x_Request"
+            )
+        ]]
+    )
+
+    channel = await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL
 
     await bot.send_photo(
-        chat_id=await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL,
-        photo=poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg",
+        chat_id=channel,
+        photo=poster,
         caption=caption,
+        reply_markup=buttons,
         parse_mode=enums.ParseMode.HTML,
-        reply_markup=buttons
+        has_spoiler=True
     )
 
-
-# ================= CALLBACK (HD PHOTO) ================= #
-
-@Client.on_callback_query(filters.regex("^hdphoto"))
-async def hd_photo_handler(bot, query):
-    _, title, year = query.data.split("|")
-
-    tmdb = await fetch_tmdb_hd(title, year)
-    image = tmdb.get("backdrop") or tmdb.get("poster")
-
-    if not image:
-        return await query.answer("HD photo not found ❌", show_alert=True)
-
-    await query.message.reply_photo(
-        photo=image,
-        caption="🎬 TMDB ORIGINAL HD PHOTO"
-    )
-
-
-# ================= TMDB FETCH ================= #
-
-async def fetch_tmdb_hd(title, year=None):
-    params = {
-        "api_key": TMDB_API_KEY,
-        "query": title,
-        "year": year
-    }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get("https://api.themoviedb.org/3/search/movie", params=params) as r:
-            data = await r.json()
-
-    if not data.get("results"):
-        return {}
-
-    m = data["results"][0]
-    return {
-        "poster": f"https://image.tmdb.org/t/p/original{m['poster_path']}" if m.get("poster_path") else None,
-        "backdrop": f"https://image.tmdb.org/t/p/original{m['backdrop_path']}" if m.get("backdrop_path") else None
-    }
-
-
-# ================= HELPERS ================= #
 
 async def get_imdb(name):
     try:
-        return await get_poster(await movie_name_format(name)) or {}
+        data = await get_poster(await movie_name_format(name))
+        if not data:
+            return {}
+        return {
+            "title": data.get("title"),
+            "kind": data.get("kind"),
+            "genres": ", ".join(data.get("genres", []))
+        }
     except:
         return {}
 
-def detect_quality(text):
-    text = text.lower()
-    for q in ["2160p","1080p","720p","480p"]:
-        if q in text:
+
+async def fetch_movie_poster(title: str):
+    async with aiohttp.ClientSession() as session:
+        url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
+        try:
+            async with session.get(url, timeout=5) as r:
+                if r.status == 200:
+                    data = await r.json()
+                    for k in ["jisshu-2","jisshu-3","jisshu-4"]:
+                        if data.get(k):
+                            return data[k][0]
+        except:
+            pass
+    return None
+
+
+async def get_qualities(text):
+    for q in ["2160p","1080p","720p","480p","HDRip","WEB-DL","CAMRip"]:
+        if q.lower() in text.lower():
             return q
     return "720p"
 
+
+async def Jisshu_qualities(text, name):
+    for q in ["2160p","1080p","720p","480p"]:
+        if q in text or q in name:
+            return q
+    return "720p"
+
+
 async def movie_name_format(name):
-    return re.sub(r"[^\w\s]", " ", name or "").replace("_"," ").strip()
+    return re.sub(r"[.@#_\-\[\]\(\)]", " ", name).strip()
+
 
 def format_file_size(size):
     for u in ["B","KB","MB","GB","TB"]:
         if size < 1024:
             return f"{size:.2f} {u}"
         size /= 1024
+    return "N/A"
