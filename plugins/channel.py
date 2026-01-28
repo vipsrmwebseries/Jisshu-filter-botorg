@@ -25,7 +25,7 @@ FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd3
 
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>Tɪᴛʟᴇ</b>:<code>✅ {title}</code> <b>#{kind}</b>
+<b>Tɪᴛʟᴇ</b>: <code>{title}</code> <b>#{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
@@ -93,6 +93,7 @@ async def send_movie_update(bot, key, files):
     imdb = await get_imdb(key)
     tmdb = await get_tmdb(key)
 
+    # ---------- TITLE FIX ----------
     base_title = tmdb.get("title") or imdb.get("title") or key
 
     kind_raw = (tmdb.get("kind") or imdb.get("kind") or "").lower()
@@ -113,13 +114,13 @@ async def send_movie_update(bot, key, files):
     languages = {f["language"] for f in files if f["language"] != "Not Available"}
     language = ", ".join(sorted(languages)) or "Not Available"
 
-    # 🔥 FINAL POSTER LOGIC (LANDSCAPE, NOT TOO HD)
-    if tmdb.get("backdrop"):
-        poster = tmdb["backdrop"]
-    elif imdb.get("poster"):
-        poster = imdb["poster"]
-    else:
-        poster = FALLBACK_POSTER
+    # ---------- POSTER FIX ----------
+    poster = (
+        imdb.get("backdrop")
+        or tmdb.get("backdrop")
+        or imdb.get("poster")
+        or FALLBACK_POSTER
+    )
 
     caption = UPDATE_CAPTION.format(
         title=title,
@@ -167,7 +168,6 @@ async def get_tmdb(query):
                     "kind": "SERIES" if media_type == "tv" else "MOVIE",
                     "genres": genres,
                     "url": f"https://www.themoviedb.org/{media_type}/{item['id']}",
-                    # 👇 normal size, not ultra HD
                     "backdrop": f"https://image.tmdb.org/t/p/w780{item['backdrop_path']}" if item.get("backdrop_path") else None
                 }
     return {}
@@ -198,7 +198,8 @@ async def get_imdb(name):
             "kind": imdb.get("kind"),
             "genres": genres,
             "url": imdb.get("url"),
-            "poster": imdb.get("poster") or imdb.get("cover url")
+            "poster": imdb.get("poster") or imdb.get("cover url"),
+            "backdrop": imdb.get("backdrop")
         }
     except:
         return {}
