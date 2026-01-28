@@ -18,12 +18,12 @@ CAPTION_LANGUAGES = [
     "Bhojpuri","Hindi","Bengali","Tamil","English","Telugu","Malayalam",
     "Kannada","Marathi","Punjabi","Gujarati","Korean","Spanish",
     "French","German","Chinese","Arabic","Portuguese","Russian",
-    "Japanese","Odia","Assamese","Urdu"
+    "Japanese","Odia","Assamese","Urdu","Tagalog"
 ]
 
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>✅ {title} {season_tag} | #{kind}</b>
+<b>✅ {title} | {season_tag} | #{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
@@ -54,34 +54,28 @@ async def media(bot, message):
 
 
 async def queue_movie_file(bot, media):
-    try:
-        raw_name = media.file_name or ""
-        key_name = await movie_name_format(raw_name)
-        caption = await movie_name_format(media.caption or "")
+    raw_name = media.file_name or ""
+    key_name = await movie_name_format(raw_name)
+    caption = await movie_name_format(media.caption or "")
 
-        language = (
-            ", ".join(l for l in CAPTION_LANGUAGES if l.lower() in caption.lower())
-            or "Not Available"
-        )
+    language = (
+        ", ".join(l for l in CAPTION_LANGUAGES if l.lower() in caption.lower())
+        or "Not Available"
+    )
 
-        file_id, _ = unpack_new_file_id(media.file_id)
+    file_id, _ = unpack_new_file_id(media.file_id)
+    movie_files[key_name].append({"file_id": file_id, "language": language})
 
-        movie_files[key_name].append({"file_id": file_id, "language": language})
+    if key_name in processing_movies:
+        return
 
-        if key_name in processing_movies:
-            return
+    processing_movies.add(key_name)
+    await asyncio.sleep(POST_DELAY)
 
-        processing_movies.add(key_name)
-        await asyncio.sleep(POST_DELAY)
+    await send_movie_update(bot, key_name, movie_files[key_name])
 
-        await send_movie_update(bot, key_name, movie_files[key_name])
-
-        movie_files.pop(key_name, None)
-        processing_movies.remove(key_name)
-
-    except Exception as e:
-        processing_movies.discard(key_name)
-        await bot.send_message(LOG_CHANNEL, f"<code>{e}</code>")
+    movie_files.pop(key_name, None)
+    processing_movies.remove(key_name)
 
 
 async def send_movie_update(bot, key_name, files):
@@ -90,15 +84,14 @@ async def send_movie_update(bot, key_name, files):
     notified_movies.add(key_name)
 
     imdb = await get_imdb(key_name)
+    tmdb = await get_tmdb(key_name)
 
-    title = imdb.get("title") or key_name
-    imdb_kind = (imdb.get("kind") or "").lower()
-
-    kind = "SERIES" if "tv" in imdb_kind else "MOVIE"
-    genre = imdb.get("genres") or "Unknown"
+    title = tmdb.get("title") or imdb.get("title") or key_name
+    kind = tmdb.get("kind") or "MOVIE"
+    genre = tmdb.get("genres") or imdb.get("genres") or "Unknown"
 
     imdb_url = imdb.get("imdb_url") or f"https://www.imdb.com/find?q={title.replace(' ', '+')}"
-    tmdb_url = imdb.get("tmdb_url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
+    tmdb_url = tmdb.get("tmdb_url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
 
     season_tag = ""
     if kind == "SERIES":
@@ -111,7 +104,7 @@ async def send_movie_update(bot, key_name, files):
         languages.update(f["language"].split(", "))
     language = ", ".join(sorted(languages))
 
-    poster = await fetch_movie_poster(title)
+    poster = tmdb.get("poster") or await fetch_movie_poster(title)
     if not poster:
         poster = "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
 
@@ -141,26 +134,55 @@ async def send_movie_update(bot, key_name, files):
     )
 
 
-# ================= HELPERS ================= #
+# ================= TMDB (GENRE SOURCE OF TRUTH) ================= #
+
+async def get_tmdb(query):
+    async with aiohttp.ClientSession() as session:
+        for media_type in ["movie", "tv"]:
+            url = (
+                f"https://api.themoviedb.org/3/search/{media_type}"
+                f"?api_key={TMDB_API_KEY}&query={query}"
+            )
+            async with session.get(url) as r:
+                data = await r.json()
+                results = data.get("results")
+                if results:
+                    item = results[0]
+                    genres = await get_tmdb_genres(item["genre_ids"], media_type)
+                    return {
+                        "title": item.get("title") or item.get("name"),
+                        "kind": "SERIES" if media_type == "tv" else "MOVIE",
+                        "genres": genres,
+                        "tmdb_url": f"https://www.themoviedb.org/{media_type}/{item['id']}",
+                        "poster": f"https://image.tmdb.org/t/p/w500{item.get('poster_path')}"
+                    }
+    return {}
+
+
+async def get_tmdb_genres(genre_ids, media_type):
+    url = f"https://api.themoviedb.org/3/genre/{media_type}/list?api_key={TMDB_API_KEY}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as r:
+            data = await r.json()
+            mapping = {g["id"]: g["name"] for g in data.get("genres", [])}
+            return ", ".join(mapping[g] for g in genre_ids if g in mapping)
+
+
+# ================= IMDb ================= #
 
 async def get_imdb(name):
     try:
         data = await get_poster(name)
         if not data:
             return {}
-
         genres = data.get("genres")
         if isinstance(genres, list):
             genres = ", ".join(genres)
-        if not genres:
-            genres = "Unknown"
-
         return {
-            "title": data.get("title") or name,
-            "kind": data.get("kind") or "movie",
+            "title": data.get("title"),
+            "kind": data.get("kind"),
             "genres": genres,
             "imdb_url": data.get("url"),
-            "tmdb_url": data.get("tmdb_url"),
         }
     except:
         return {}
@@ -169,21 +191,17 @@ async def get_imdb(name):
 async def fetch_movie_poster(title):
     async with aiohttp.ClientSession() as session:
         url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
-        try:
-            async with session.get(url, timeout=5) as r:
-                if r.status == 200:
-                    data = await r.json()
-                    for k in ["jisshu-2", "jisshu-3", "jisshu-4"]:
-                        if data.get(k):
-                            return data[k][0]
-        except:
-            pass
+        async with session.get(url) as r:
+            if r.status == 200:
+                data = await r.json()
+                for k in ["jisshu-2", "jisshu-3", "jisshu-4"]:
+                    if data.get(k):
+                        return data[k][0]
     return None
 
 
 async def movie_name_format(name):
     name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
-
     year = re.search(r"(19\d{2}|20\d{2})", name)
     year = year.group(1) if year else ""
 
