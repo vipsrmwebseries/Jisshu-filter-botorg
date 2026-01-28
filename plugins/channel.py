@@ -1,4 +1,4 @@
-# --| SUPER MERGED CODE : RK CINEHUB × SILENTXBOTZ |--#
+# --| FINAL SUPER MERGED CODE : RK CINEHUB × SILENTXBOTZ |--#
 
 import re
 import asyncio
@@ -24,6 +24,7 @@ CAPTION_LANGUAGES = [
     "Russian","Japanese","Odia","Assamese","Urdu"
 ]
 
+# 🔥 FIXED LANDSCAPE FALLBACK
 FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
 
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
@@ -118,7 +119,8 @@ async def send_movie_update(bot, key, files):
     languages = {f["language"] for f in files if f["language"] != "Not Available"}
     language = ", ".join(sorted(languages)) or "Not Available"
 
-    poster = await get_best_poster(tmdb, imdb)
+    # 🔥 LANDSCAPE POSTER ONLY (IMDb BLOCKED)
+    poster = await get_best_poster(tmdb)
 
     caption = UPDATE_CAPTION.format(
         title=title,
@@ -145,13 +147,18 @@ async def send_movie_update(bot, key, files):
     )
 
 
-# ================= POSTER (SILENTX STYLE) ================= #
+# ================= POSTER (SILENTX STYLE FIX) ================= #
 
-async def get_best_poster(tmdb: dict, imdb: dict) -> str:
-    if tmdb.get("backdrop"):
-        return tmdb["backdrop"]
-    if imdb.get("poster"):
-        return imdb["poster"]
+async def get_best_poster(tmdb: dict) -> str:
+    """
+    Always LANDSCAPE poster
+    IMDb poster completely blocked
+    """
+
+    backdrop = tmdb.get("backdrop")
+    if backdrop and backdrop.startswith("http"):
+        return backdrop
+
     return FALLBACK_POSTER
 
 
@@ -176,6 +183,7 @@ async def get_tmdb(query):
                     "kind": "SERIES" if media_type == "tv" else "MOVIE",
                     "genres": genres,
                     "url": f"https://www.themoviedb.org/{media_type}/{item['id']}",
+                    # 🔥 FIXED SIZE (NOT ULTRA HD)
                     "backdrop": f"https://image.tmdb.org/t/p/w780{item['backdrop_path']}" if item.get("backdrop_path") else None
                 }
     return {}
@@ -190,7 +198,7 @@ async def tmdb_genres(ids, media_type):
             return ", ".join(mp[i] for i in ids if i in mp)
 
 
-# ================= IMDb ================= #
+# ================= IMDb (METADATA ONLY) ================= #
 
 async def get_imdb(name):
     try:
@@ -205,8 +213,7 @@ async def get_imdb(name):
             "title": imdb.get("title"),
             "kind": imdb.get("kind"),
             "genres": genres,
-            "url": imdb.get("url"),
-            "poster": imdb.get("poster") or imdb.get("cover url")
+            "url": imdb.get("url")
         }
     except:
         return {}
@@ -239,4 +246,3 @@ async def make_clean_key(name: str):
     season = f" S{int(m.group(1)):02d}" if m else ""
     name = await extract_clean_title(name)
     return f"{name}{season}".strip()
-
