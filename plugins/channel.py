@@ -41,15 +41,15 @@ CAPTION_LANGUAGES = [
     "Urdu",
 ]
 
-UPDATE_CAPTION = """<blockquote><b>NEW {} ADDED ✅</b><blockquote>
+UPDATE_CAPTION = """<blockquote><b>NEW {} ADDED ✅</b></blockquote>
 
-<b> Tɪᴛʟᴇ :<b><code>{}</code>
+<b> Tɪᴛʟᴇ :<b> <code>{}</code>
 <b> Yᴇᴀʀ :{}</b>
 
 🔰 <b>Qᴜᴀʟɪᴛʏ : {}</b>
 🎧 <b>Aᴜᴅɪᴏ : {}</b>
 
-<blockquote><b>✨ Telegram Files ✨</b><blockquote>
+<blockquote><b>✨ Telegram Files ✨</b></blockquote>
 
 <b>{}</b>
 
@@ -350,3 +350,4 @@ def format_file_size(size_bytes):
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.2f} PB"
+
