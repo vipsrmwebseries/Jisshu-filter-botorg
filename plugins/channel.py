@@ -1,54 +1,56 @@
-# --| RK CINEHUB × SILENTXBOTZ : FINAL STABLE FIX |--#
+# --| This code created by: Jisshu_bots & SilentXBotz |--#
 
 import re
+import hashlib
 import asyncio
 import aiohttp
+from typing import Optional
 from collections import defaultdict
-
-from pyrogram import Client, filters, enums
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from info import *
 from utils import *
+from pyrogram import Client, filters, enums
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database.users_chats_db import db
 from database.ia_filterdb import save_file, unpack_new_file_id
 
 
-# ================= CONFIG ================= #
-
 CAPTION_LANGUAGES = [
-    "Hindi","English","Bengali","Tamil","Telugu","Malayalam",
-    "Kannada","Punjabi","Gujarati","French","Spanish","German"
+    "Bhojpuri","Hindi","Bengali","Tamil","English","Bangla","Telugu",
+    "Malayalam","Kannada","Marathi","Punjabi","Bengoli","Gujrati",
+    "Korean","Gujarati","Spanish","French","German","Chinese",
+    "Arabic","Portuguese","Russian","Japanese","Odia","Assamese","Urdu"
 ]
 
-FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd378.jpg"
+UPDATE_CAPTION = """<blockquote><b>𝖭𝖤𝖶 {} 𝖠𝖣𝖣𝖤𝖣 ✅</b></blockquote>
 
-UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
+🎬 <code>{}</code> | <b>({})</b>
 
-<b>Title:</b> <code>{title}</code> <b>#{kind}</b>
+🎥 <b>Genres: {}</b>
 
-<blockquote>🎙 <b>{language}</b></blockquote>
+⭐ <b>IMDb:</b> <a href="{imdb_url}">{imdb_rating}</a> | 🎭 <b>TMDB:</b> <a href="{tmdb_url}">{tmdb_rating}</a>
 
-⭐ <a href="{imdb_url}">IMDb</a> | 🎭 <a href="{tmdb_url}">TMDB</a>
-🎥 <b>Genres:</b> {genres}
-📅 <b>Year:</b> {year}
+🔰 <b>Quality: {}</b>
+🎧 <b>Audio: {}</b>
+
+<blockquote><b>⚡Powered by @RkCineHub</b></blockquote>
 """
 
-POST_DELAY = 6
-
-posted_keys = set()
-processing_keys = set()
+POST_DELAY = 10
+notified_movies = set()
 movie_files = defaultdict(list)
+processing_movies = set()
 
-media_filter = filters.document | filters.video
+media_filter = filters.document | filters.video | filters.audio
 
-
-# ================= MAIN ================= #
 
 @Client.on_message(filters.chat(CHANNELS) & media_filter)
 async def media(bot, message):
-    media = message.document or message.video
+    media = getattr(message, message.media.value, None)
     if not media:
+        return
+
+    if media.mime_type not in ["video/mp4", "video/x-matroska", "document/mp4"]:
         return
 
     media.caption = message.caption or ""
@@ -58,125 +60,168 @@ async def media(bot, message):
     if not await db.get_send_movie_update_status(bot.me.id):
         return
 
-    await queue_movie(bot, media)
+    await queue_movie_file(bot, media)
 
 
-async def queue_movie(bot, media):
-    clean_title, year = extract_title_year(media.file_name)
+async def queue_movie_file(bot, media):
+    file_name = await movie_name_format(media.file_name)
+    caption = await movie_name_format(media.caption)
 
-    key = f"{clean_title} {year or ''}".strip()
+    year_match = re.search(r"\b(19|20)\d{2}\b", caption)
+    year = year_match.group(0) if year_match else None
 
+    quality = await get_qualities(caption)
     language = ", ".join(
-        l for l in CAPTION_LANGUAGES if l.lower() in media.caption.lower()
+        [l for l in CAPTION_LANGUAGES if l.lower() in caption.lower()]
     ) or "Not Available"
 
     file_id, _ = unpack_new_file_id(media.file_id)
-    movie_files[key].append(language)
 
-    if key in posted_keys or key in processing_keys:
+    movie_files[file_name].append({
+        "file_id": file_id,
+        "quality": quality,
+        "language": language,
+        "year": year
+    })
+
+    if file_name in processing_movies:
         return
 
-    processing_keys.add(key)
+    processing_movies.add(file_name)
     await asyncio.sleep(POST_DELAY)
 
-    await send_movie_update(bot, clean_title, year, movie_files[key])
+    await send_movie_update(bot, file_name, movie_files[file_name])
 
-    movie_files.pop(key, None)
-    processing_keys.remove(key)
-    posted_keys.add(key)
+    movie_files.pop(file_name, None)
+    processing_movies.remove(file_name)
 
 
-# ================= POST ================= #
+async def send_movie_update(bot, file_name, files):
+    if file_name in notified_movies:
+        return
+    notified_movies.add(file_name)
 
-async def send_movie_update(bot, title, year, languages):
-    tmdb = await get_tmdb(title, year)
+    imdb = await get_imdb(file_name)
+    tmdb = await get_tmdb(file_name)
 
-    kind = tmdb.get("kind", "MOVIE")
-    genres = tmdb.get("genres", "N/A")
-    poster = tmdb.get("poster") or FALLBACK_POSTER
+    title = imdb.get("title") or tmdb.get("title") or file_name
+    year = imdb.get("year") or tmdb.get("year") or files[0]["year"] or "N/A"
+
+    imdb_url = imdb.get("url", "https://www.imdb.com")
+    imdb_rating = imdb.get("rating", "N/A")
+    imdb_genres = imdb.get("genres", "")
+
+    tmdb_url = tmdb.get("url", "https://www.themoviedb.org")
+    tmdb_rating = tmdb.get("rating", "N/A")
+    tmdb_genres = tmdb.get("genres", "")
+
+    # 🔥 FINAL GENRES (IMDb priority, fallback TMDB)
+    genres = imdb_genres or tmdb_genres or "N/A"
+
+    kind = (imdb.get("kind") or tmdb.get("kind") or "MOVIE").upper()
+
+    poster = await fetch_movie_poster(title, year)
+
+    language = ", ".join({f["language"] for f in files})
+    quality = ", ".join({f["quality"] for f in files})
 
     caption = UPDATE_CAPTION.format(
-        title=tmdb.get("title", title),
         kind=kind,
-        language=", ".join(set(languages)),
+        title=title,
+        year=year,
         genres=genres,
-        year=tmdb.get("year", year or "N/A"),
-        imdb_url=tmdb.get("imdb_url", f"https://www.imdb.com/find?q={title}"),
-        tmdb_url=tmdb.get("tmdb_url", f"https://www.themoviedb.org/search?query={title}")
+        imdb_url=imdb_url,
+        imdb_rating=imdb_rating,
+        tmdb_url=tmdb_url,
+        tmdb_rating=tmdb_rating,
+        quality=quality,
+        language=language
     )
+
+    buttons = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("🔎 Tap to Search", url="https://t.me/Rk2x_Request")]]
+    )
+
+    channel = await db.movies_update_channel_id() or MOVIE_UPDATE_CHANNEL
 
     await bot.send_photo(
-        chat_id=MOVIE_UPDATE_CHANNEL,
-        photo=poster,
+        chat_id=channel,
+        photo=poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg",
         caption=caption,
         parse_mode=enums.ParseMode.HTML,
-        has_spoiler=True,
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔍 Tap to Search", url="https://t.me/Rk2x_Request")]]
-        )
+        has_spoiler=True, 
+        reply_markup=buttons
     )
 
 
-# ================= TMDB STRONG SEARCH ================= #
+# ================= IMDb ================= #
 
-async def get_tmdb(title, year):
-    async with aiohttp.ClientSession() as session:
-        params = {
-            "api_key": TMDB_API_KEY,
-            "query": title
+async def get_imdb(name):
+    try:
+        imdb = await get_poster(name)
+        if not imdb:
+            return {}
+        genres = imdb.get("genres")
+        if isinstance(genres, list):
+            genres = ", ".join(genres)
+        return {
+            "title": imdb.get("title"),
+            "year": imdb.get("year"),
+            "url": imdb.get("url"),
+            "rating": imdb.get("rating", "N/A"),
+            "kind": imdb.get("kind", "Movie"),
+            "genres": genres
         }
-        if year:
-            params["primary_release_year"] = year
+    except:
+        return {}
 
-        url = "https://api.themoviedb.org/3/search/movie"
 
-        async with session.get(url, params=params) as r:
+# ================= TMDB ================= #
+
+async def get_tmdb(query):
+    async with aiohttp.ClientSession() as session:
+        url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}"
+        async with session.get(url) as r:
+            if r.status != 200:
+                return {}
             data = await r.json()
             if not data.get("results"):
                 return {}
 
-            m = data["results"][0]
-
-            genres = await tmdb_genres(m["genre_ids"])
-
+            item = data["results"][0]
             return {
-                "title": m.get("title"),
-                "year": (m.get("release_date") or "")[:4],
-                "genres": genres,
-                "kind": "MOVIE",
-                "poster": f"https://image.tmdb.org/t/p/w780{m['backdrop_path']}" if m.get("backdrop_path") else None,
-                "tmdb_url": f"https://www.themoviedb.org/movie/{m['id']}"
+                "title": item.get("title"),
+                "year": (item.get("release_date") or "")[:4],
+                "rating": item.get("vote_average", "N/A"),
+                "url": f"https://www.themoviedb.org/movie/{item['id']}",
+                "genres": ", ".join(item.get("genre_ids", [])),
+                "kind": "Movie"
             }
 
 
-async def tmdb_genres(ids):
+# ================= POSTER ================= #
+
+async def fetch_movie_poster(title: str, year: Optional[str] = None):
     async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f"https://api.themoviedb.org/3/genre/movie/list?api_key={TMDB_API_KEY}"
-        ) as r:
+        url = f"https://jisshuapis.vercel.app/api.php?query={title.replace(' ', '+')}"
+        async with session.get(url) as r:
+            if r.status != 200:
+                return None
             data = await r.json()
-            mp = {g["id"]: g["name"] for g in data["genres"]}
-            return ", ".join(mp[i] for i in ids if i in mp)
+            for k in ["jisshu-2", "jisshu-3", "jisshu-4"]:
+                if data.get(k):
+                    return data[k][0]
+    return None
 
 
-# ================= TITLE + YEAR EXTRACT ================= #
+# ================= HELPERS ================= #
 
-def extract_title_year(name: str):
-    name = name.replace(".", " ").replace("_", " ")
-    year = None
+async def get_qualities(text):
+    for q in ["480p","720p","1080p","HDRip","WEB-DL","HEVC"]:
+        if q.lower() in text.lower():
+            return q
+    return "HDRip"
 
-    m = re.search(r"(19\d{2}|20\d{2})", name)
-    if m:
-        year = m.group(1)
-        name = name.replace(year, "")
 
-    junk = [
-        "1080p","720p","480p","dvdrip","hdrip","bluray","mkv","mp4",
-        "bengali","hindi","tamil","telugu","subs","msubs"
-    ]
-
-    for j in junk:
-        name = re.sub(rf"\b{j}\b", "", name, flags=re.I)
-
-    name = re.sub(r"\s+", " ", name).strip()
-    return name, year
+async def movie_name_format(text):
+    return re.sub(r"[^\w\s]", " ", text).strip()
