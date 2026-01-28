@@ -22,10 +22,10 @@ CAPTION_LANGUAGES = [
     "Russian","Japanese","Odia","Assamese","Urdu",
 ]
 
-# 🔥 FINAL CAPTION (GENRES – PLURAL)
-UPDATE_CAPTION = """<blockquote><b>👉 RK CINEHUB #PREMIUM</b></blockquote>
+# 🔥 BLASTER HUB STYLE CAPTION
+UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>✅ {title} | #{kind}</b>
+<code>✅ {title}{season_tag}</code> <b>#{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
@@ -35,9 +35,9 @@ UPDATE_CAPTION = """<blockquote><b>👉 RK CINEHUB #PREMIUM</b></blockquote>
 
 POST_DELAY = 8
 
-# 🔒 DUPLICATE CONTROL
-posted_titles = set()
-processing_titles = set()
+# duplicate control
+posted_keys = set()
+processing_keys = set()
 movie_files = defaultdict(list)
 
 media_filter = filters.document | filters.video | filters.audio
@@ -64,8 +64,8 @@ async def media(bot, message):
 
 
 async def queue_movie_file(bot, media):
-    raw_name = media.file_name or ""
-    clean_key = await movie_name_format(raw_name)
+    raw = media.file_name or ""
+    key = await series_key_format(raw)   # 🔥 EPISODE IGNORED
     caption = media.caption or ""
 
     language = (
@@ -74,24 +74,19 @@ async def queue_movie_file(bot, media):
     )
 
     file_id, _ = unpack_new_file_id(media.file_id)
+    movie_files[key].append({"file_id": file_id, "language": language})
 
-    movie_files[clean_key].append({
-        "file_id": file_id,
-        "language": language
-    })
-
-    # ❌ Already posted / processing → ignore
-    if clean_key in posted_titles or clean_key in processing_titles:
+    if key in posted_keys or key in processing_keys:
         return
 
-    processing_titles.add(clean_key)
+    processing_keys.add(key)
     await asyncio.sleep(POST_DELAY)
 
-    await send_movie_update(bot, clean_key, movie_files[clean_key])
+    await send_movie_update(bot, key, movie_files[key])
 
-    movie_files.pop(clean_key, None)
-    processing_titles.remove(clean_key)
-    posted_titles.add(clean_key)
+    movie_files.pop(key, None)
+    processing_keys.remove(key)
+    posted_keys.add(key)
 
 
 # ================= POST ================= #
@@ -100,16 +95,11 @@ async def send_movie_update(bot, key, files):
     imdb_data = await get_imdb(key)
     tmdb_data = await get_tmdb(key)
 
-    # 🔥 TITLE
     title = tmdb_data.get("title") or imdb_data.get("title") or key
 
-    # 🔥 TYPE
-    kind = tmdb_data.get("kind") or imdb_data.get("kind") or "MOVIE"
-    kind = kind.upper().replace(" ", "_")
-    if kind == "TV_SERIES":
-        kind = "SERIES"
+    kind_raw = (tmdb_data.get("kind") or imdb_data.get("kind") or "").lower()
+    kind = "SERIES" if ("tv" in kind_raw or "series" in kind_raw) else "MOVIE"
 
-    # 🔥 GENRES (PLURAL)
     genres = tmdb_data.get("genres") or imdb_data.get("genres") or "N/A"
 
     imdb_url = imdb_data.get("url") or f"https://www.imdb.com/find?q={title.replace(' ', '+')}"
@@ -124,12 +114,18 @@ async def send_movie_update(bot, key, files):
     languages = set(f["language"] for f in files if f["language"] != "Not Available")
     language = ", ".join(sorted(languages)) or "Not Available"
 
-    poster = tmdb_data.get("poster") or await fetch_movie_poster(title)
+    # 🔥 POSTER PRIORITY: IMDb → TMDB → API → Default
+    poster = await fetch_imdb_poster(title)
+    if not poster:
+        poster = tmdb_data.get("poster")
+    if not poster:
+        poster = await fetch_movie_poster(title)
     if not poster:
         poster = "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
 
     caption = UPDATE_CAPTION.format(
         title=title,
+        season_tag=season_tag,
         kind=kind,
         language=language,
         genres=genres,
@@ -148,8 +144,8 @@ async def send_movie_update(bot, key, files):
         photo=poster,
         caption=caption,
         reply_markup=buttons,
-        parse_mode=enums.ParseMode.HTML, 
-        has_spoiler=True
+        parse_mode=enums.ParseMode.HTML,
+        has_spoiler=True   # 👈 PHOTO SPOILER ON
     )
 
 
@@ -184,16 +180,16 @@ async def tmdb_genres(ids, media_type):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as r:
             data = await r.json()
-            mapping = {g["id"]: g["name"] for g in data.get("genres", [])}
-            return ", ".join(mapping[i] for i in ids if i in mapping)
+            mp = {g["id"]: g["name"] for g in data.get("genres", [])}
+            return ", ".join(mp[i] for i in ids if i in mp)
 
 
-# ================= IMDb (FALLBACK) ================= #
+# ================= IMDb (METADATA + POSTER) ================= #
 
 async def get_imdb(name):
     try:
-        formatted = await movie_name_format(name)
-        imdb = await get_poster(formatted)
+        clean = await clean_title(name)
+        imdb = await get_poster(clean)
         if not imdb:
             return {}
         genres = imdb.get("genres")
@@ -204,9 +200,20 @@ async def get_imdb(name):
             "kind": imdb.get("kind"),
             "genres": genres,
             "url": imdb.get("url"),
+            "poster": imdb.get("poster") or imdb.get("cover url"),
         }
     except:
         return {}
+
+
+async def fetch_imdb_poster(title: str) -> Optional[str]:
+    try:
+        imdb = await get_poster(title)
+        if not imdb:
+            return None
+        return imdb.get("poster") or imdb.get("cover url")
+    except:
+        return None
 
 
 # ================= HELPERS ================= #
@@ -226,22 +233,24 @@ async def fetch_movie_poster(title: str) -> Optional[str]:
     return None
 
 
+# 🔥 SERIES KEY (EPISODE IGNORED)
+async def series_key_format(name: str):
+    name = re.sub(r'\b(E|EP)\d{1,3}\b', '', name, flags=re.I)
+    name = re.sub(r'\bS(\d{1,2})E?\d*\b', r'S\1', name, flags=re.I)
+    return await clean_title(name)
+
+
 # 🔥 CLEAN TITLE
-async def movie_name_format(name: str):
-    name = name or ""
+asyncasync def clean_title(name: str):
     name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
 
-    remove_words = [
-        "480p","720p","1080p","2160p","4k",
-        "amzn","web","webdl","web-dl","webrip",
-        "hdrip","bluray","brrip",
-        "x264","x265","h264","h265","hevc",
-        "ddp","dd","aac","atmos","2 0","5 1",
-        "punjabi","hindi","english","tamil","telugu",
-        "subs","esub","cc","multi","dual","mkv"
+    remove = [
+        "480p","720p","1080p","2160p","4k","amzn","web","webdl","webrip",
+        "hdrip","bluray","brrip","x264","x265","h264","h265","hevc",
+        "dd","ddp","aac","2ch","5.1","subs","dual","multi","cc"
     ]
 
-    for w in remove_words:
+    for w in remove:
         name = re.sub(rf"\b{w}\b", "", name, flags=re.I)
 
     name = re.sub(r"[._\-]", " ", name)
