@@ -241,7 +241,7 @@ async def series_key_format(name: str):
 
 
 # 🔥 CLEAN TITLE
-asyncasync def clean_title(name: str):
+async def clean_title(name: str):
     name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
 
     remove = [
@@ -261,3 +261,4 @@ asyncasync def clean_title(name: str):
         name = name[: name.find(m.group(1)) + 4]
 
     return name.strip()
+
