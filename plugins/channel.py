@@ -13,7 +13,7 @@ from database.ia_filterdb import save_file
 
 
 POST_DELAY = 10
-posted_ids = set()
+posted_keys = set()
 
 media_filter = filters.document | filters.video | filters.audio
 
@@ -24,98 +24,113 @@ async def media(bot, message):
     if not media:
         return
 
-    sts = await save_file(media)
-    if sts != "suc":
+    if await save_file(media) != "suc":
         return
 
-    name = media.file_name or message.caption or ""
+    raw = media.file_name or message.caption or ""
     await asyncio.sleep(POST_DELAY)
-    await process_title(bot, name)
+    await process(bot, raw)
 
 
-async def process_title(bot, raw_name):
-    tmdb = await tmdb_search(raw_name)
-    if not tmdb:
+async def process(bot, raw):
+    data = await tmdb_engine(raw)
+    if not data:
         return
 
-    # 🔑 UNIQUE KEY (MOVIE / SERIES / SEASON)
-    unique_key = f"{tmdb['id']}_{tmdb['season']}"
-
-    if unique_key in posted_ids:
+    # 🔐 UNIQUE KEY (movie = id, series = id+season)
+    ukey = f"{data['id']}_{data['season'] or 'MOVIE'}"
+    if ukey in posted_keys:
         return
-    posted_ids.add(unique_key)
+    posted_keys.add(ukey)
 
-    caption = f"""<b>{tmdb['channel']}</b>
+    caption = f"""
+<blockquote><b>👉 RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>✅ {tmdb['title']} {tmdb['season_tag']} #{tmdb['type']}</b>
+<b>✅ {data['title']} {data['tag']} #{data['type']}</b>
 
-<blockquote>🎙 {tmdb['language']}</blockquote>
+<blockquote>🎙 <b>{data['language']}</b></blockquote>
 
-⭐ <a href="{tmdb['imdb']}">IMDb</a> | 🎭 <a href="{tmdb['tmdb']}">TMDB</a>
-🎥 <b>Genre:</b> {tmdb['genres']}
+⭐ <a href="{data['imdb']}"><b>IMDb</b></a> | 🎭 <a href="{data['tmdb']}"><b>TMDB</b></a>
+🎥 <b>Genre:</b> {data['genres']}
 """
 
     btn = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🔍 Tap to Search", url="https://t.me/Rk2x_Request")]]
+        [[InlineKeyboardButton("🔍 Tap to Search", url=SEARCH_LINK)]]
     )
 
     await bot.send_photo(
         chat_id=MOVIE_UPDATE_CHANNEL,
-        photo=tmdb["poster"],
-        caption=caption,
+        photo=data["poster"],
+        caption=caption.strip(),
         reply_markup=btn,
         parse_mode=enums.ParseMode.HTML,
         has_spoiler=True
     )
 
 
-# ================= TMDB ENGINE ================= #
+# ================= TMDB CORE ================= #
 
-async def tmdb_search(query):
-    season = extract_season(query)
+async def tmdb_engine(query):
+    q = clean(query)
+    season = get_season(q)
 
     async with aiohttp.ClientSession() as s:
-        for t in ["tv", "movie"]:
-            url = f"https://api.themoviedb.org/3/search/{t}?api_key={TMDB_API_KEY}&query={clean(query)}"
+        for mtype in ["movie", "tv"]:
+            url = f"https://api.themoviedb.org/3/search/{mtype}?api_key={TMDB_API_KEY}&query={q}"
             async with s.get(url) as r:
-                j = await r.json()
-                if not j.get("results"):
+                js = await r.json()
+                if not js.get("results"):
                     continue
 
-                m = j["results"][0]
-                genres = await tmdb_genres(m["genre_ids"], t)
+                it = js["results"][0]
+                genres = await tmdb_genres(it["genre_ids"], mtype)
+                title = it.get("title") or it.get("name")
+                year = (it.get("release_date") or it.get("first_air_date") or "")[:4]
 
                 return {
-                    "id": m["id"],
-                    "title": m.get("name") or m.get("title"),
-                    "type": "SERIES" if t == "tv" else "MOVIE",
-                    "season": season if t == "tv" else "MOVIE",
-                    "season_tag": f"S{season:02d}" if season else "",
+                    "id": it["id"],
+                    "title": f"{title} {year}".strip() if mtype == "movie" else title,
+                    "type": "SERIES" if mtype == "tv" else "MOVIE",
+                    "season": season if mtype == "tv" else None,
+                    "tag": f"S{season:02d}" if season and mtype == "tv" else "",
                     "genres": genres,
-                    "tmdb": f"https://themoviedb.org/{t}/{m['id']}",
-                    "imdb": f"https://www.imdb.com/find?q={m.get('name') or m.get('title')}",
-                    "poster": f"https://image.tmdb.org/t/p/w500{m['poster_path']}",
-                    "language": "English, Hindi, Tamil, Telugu",
-                    "channel": "<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>"
+                    "tmdb": f"https://www.themoviedb.org/{mtype}/{it['id']}",
+                    "imdb": f"https://www.imdb.com/find?q={title}",
+                    "poster": f"https://image.tmdb.org/t/p/w500{it['poster_path']}",
+                    "language": detect_lang(query),
                 }
     return None
 
 
-async def tmdb_genres(ids, media):
-    url = f"https://api.themoviedb.org/3/genre/{media}/list?api_key={TMDB_API_KEY}"
+async def tmdb_genres(ids, mtype):
+    url = f"https://api.themoviedb.org/3/genre/{mtype}/list?api_key={TMDB_API_KEY}"
     async with aiohttp.ClientSession() as s:
         async with s.get(url) as r:
-            j = await r.json()
-            mp = {g["id"]: g["name"] for g in j["genres"]}
+            js = await r.json()
+            mp = {g["id"]: g["name"] for g in js["genres"]}
             return ", ".join(mp[i] for i in ids if i in mp)
 
 
-def extract_season(text):
+# ================= HELPERS ================= #
+
+def get_season(text):
     m = re.search(r"S(\d{1,2})", text, re.I)
     return int(m.group(1)) if m else None
 
 
-def clean(text):
-    text = re.sub(r"\.(mkv|mp4|avi)", "", text, flags=re.I)
-    text = re.sub(r"[._\-]", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
+def clean(t):
+    t = re.sub(r"\.(mkv|mp4|avi|mov)", "", t, flags=re.I)
+    t = re.sub(r"[._\-]", " ", t)
+    t = re.sub(
+        r"\b(480p|720p|1080p|2160p|4k|webdl|webrip|bluray|x264|x265|aac|ddp|atmos|subs|dual|multi)\b",
+        "",
+        t,
+        flags=re.I,
+    )
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def detect_lang(t):
+    langs = ["Hindi","English","Tamil","Telugu","Malayalam","Kannada","Punjabi","Tagalog"]
+    found = [l for l in langs if l.lower() in t.lower()]
+    return ", ".join(found) if found else "Not Available"
