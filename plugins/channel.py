@@ -20,19 +20,18 @@ CAPTION_LANGUAGES = [
     "Russian","Japanese","Odia","Assamese","Urdu",
 ]
 
+# ✅ FINAL CAPTION (IMDb BASED, NO QUALITY TEXT)
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>✅ {title} | {season_tag} | #{kind}</b>
+<b>✅ {title} {season_tag} | #{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
 ⭐ <a href="{imdb_url}"><b>IMDb</b></a> | 🎭 <a href="{tmdb_url}"><b>TMDB</b></a>
 🎥 <b>Genre:</b> {genre}
-
-{quality_text}
 """
 
-POST_DELAY = 20
+POST_DELAY = 15
 
 notified_movies = set()
 processing_movies = set()
@@ -57,58 +56,55 @@ async def media(bot, message):
 async def queue_movie_file(bot, media):
     try:
         raw_name = media.file_name or ""
-        file_name = await movie_name_format(raw_name)
+        key_name = await movie_name_format(raw_name)
         caption = await movie_name_format(media.caption or "")
-
-        quality = await get_qualities(caption)
-        jquality = await Jisshu_qualities(caption, raw_name)
 
         language = (
             ", ".join(l for l in CAPTION_LANGUAGES if l.lower() in caption.lower())
             or "Not Available"
         )
 
-        size = format_file_size(media.file_size)
         file_id, _ = unpack_new_file_id(media.file_id)
 
-        ep_match = re.search(r'(E|EP)(\d{1,3})', raw_name, re.I)
-        episode = f"E{ep_match.group(2)}" if ep_match else ""
-
-        movie_files[file_name].append({
+        movie_files[key_name].append({
             "file_id": file_id,
-            "quality": jquality or quality,
-            "file_size": size,
-            "language": language,
-            "episode": episode
+            "language": language
         })
 
-        if file_name in processing_movies:
+        if key_name in processing_movies:
             return
 
-        processing_movies.add(file_name)
+        processing_movies.add(key_name)
         await asyncio.sleep(POST_DELAY)
 
-        await send_movie_update(bot, file_name, movie_files[file_name])
+        await send_movie_update(bot, key_name, movie_files[key_name])
 
-        movie_files.pop(file_name, None)
-        processing_movies.remove(file_name)
+        movie_files.pop(key_name, None)
+        processing_movies.remove(key_name)
 
     except Exception as e:
-        processing_movies.discard(file_name)
+        processing_movies.discard(key_name)
         await bot.send_message(LOG_CHANNEL, f"Update Error:\n<code>{e}</code>")
 
 
-async def send_movie_update(bot, file_name, files):
-    if file_name in notified_movies:
+async def send_movie_update(bot, key_name, files):
+    if key_name in notified_movies:
         return
-    notified_movies.add(file_name)
+    notified_movies.add(key_name)
 
-    imdb = await get_imdb(file_name)
+    imdb = await get_imdb(key_name)
 
-    title = imdb.get("title", file_name)
-    kind = imdb.get("kind", "TV_SERIES").upper().replace(" ", "_")
-    if kind == "TV_SERIES":
+    # ✅ TITLE FROM IMDb (SOURCE OF TRUTH)
+    title = imdb.get("title") or key_name
+
+    # ✅ KIND FROM IMDb (SOURCE OF TRUTH)
+    imdb_kind = (imdb.get("kind") or "").lower()
+    if imdb_kind == "movie":
+        kind = "MOVIE"
+    elif imdb_kind in ["tv series", "tv mini series"]:
         kind = "SERIES"
+    else:
+        kind = "MOVIE"  # safe fallback
 
     genre = imdb.get("genres") or "N/A"
 
@@ -116,20 +112,15 @@ async def send_movie_update(bot, file_name, files):
     tmdb_url = imdb.get("tmdb_url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
 
     season_tag = ""
-    sm = re.search(r"S(\d{1,2})", file_name, re.I)
-    if sm:
-        season_tag = f"S{int(sm.group(1)):02d}"
+    if kind == "SERIES":
+        sm = re.search(r"S(\d{1,2})", key_name, re.I)
+        if sm:
+            season_tag = f" | S{int(sm.group(1)):02d}"
 
     languages = set()
     for f in files:
         languages.update(f["language"].split(", "))
     language = ", ".join(sorted(languages))
-
-    quality_text = ""
-    for f in sorted(files, key=lambda x: x["episode"]):
-        ep = f["episode"] + " • " if f["episode"] else ""
-        link = f"<a href='https://t.me/{temp.U_NAME}?start=file_0_{f['file_id']}'>{f['file_size']}</a>"
-        quality_text += f"📦 {ep}{f['quality']} : {link}\n"
 
     poster = await fetch_movie_poster(title)
     poster = poster or "https://te.legra.ph/file/88d845b4f8a024a71465d.jpg"
@@ -140,7 +131,6 @@ async def send_movie_update(bot, file_name, files):
         kind=kind,
         language=language,
         genre=genre,
-        quality_text=quality_text,
         imdb_url=imdb_url,
         tmdb_url=tmdb_url
     )
@@ -175,7 +165,7 @@ async def get_imdb(name):
 
         return {
             "title": data.get("title"),
-            "kind": data.get("kind"),
+            "kind": data.get("kind"),          # movie / tv series
             "genres": genres,
             "imdb_url": data.get("url"),
             "tmdb_url": data.get("tmdb_url"),
@@ -199,31 +189,23 @@ async def fetch_movie_poster(title: str):
     return None
 
 
-async def get_qualities(text):
-    for q in ["2160p", "1080p", "720p", "480p"]:
-        if q.lower() in text.lower():
-            return q
-    return "720p"
-
-
-async def Jisshu_qualities(text, name):
-    for q in ["2160p", "1080p", "720p", "480p"]:
-        if q in text or q in name:
-            return q
-    return "720p"
-
-
-# ✅ SERIES + SEASON NAME (EPISODE REMOVED)
+# ✅ CLEAN NAME ONLY FOR SEARCH / KEY (NOT DISPLAY)
 async def movie_name_format(name: str):
     name = re.sub(r"\.(mkv|mp4|avi|mov)$", "", name, flags=re.I)
+
+    # REMOVE SEASON / EPISODE
+    name = re.sub(r'\bS\d{1,2}E?\d{0,2}\b', '', name, flags=re.I)
     name = re.sub(r'\b(E|EP)\d{1,3}\b', '', name, flags=re.I)
 
     remove_words = [
-        "480p","720p","1080p","2160p","4k","10bit","8bit",
+        "480p","720p","1080p","2160p","4k","8bit","10bit",
         "bluray","brrip","webrip","webdl","web-dl","hdrip",
-        "x264","x265","hevc","aac","dd","ddp","dts","atmos",
-        "hindi","english","tamil","telugu","dual","multi",
-        "org","proper","repack","bms","esub"
+        "x264","x265","h264","hevc",
+        "aac","dd","ddp","ddp5","ddp5.1","dts","atmos",
+        "amzn","nf","dsnp",
+        "audio","dub","subs","msubs","esub",
+        "hindi","english","tamil","telugu","kannada","malayalam",
+        "dual","multi","org","proper","repack","bms"
     ]
 
     for w in remove_words:
@@ -232,11 +214,3 @@ async def movie_name_format(name: str):
     name = re.sub(r"[._\-]", " ", name)
     name = re.sub(r"\s+", " ", name).strip()
     return name
-
-
-def format_file_size(size):
-    for u in ["B", "KB", "MB", "GB", "TB"]:
-        if size < 1024:
-            return f"{size:.2f} {u}"
-        size /= 1024
-    return "N/A"
