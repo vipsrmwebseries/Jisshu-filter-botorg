@@ -28,7 +28,7 @@ FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd3
 
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
-<b>Title</b>: <code>✅ {title}</code> <b>#{kind}</b>
+<b>Tɪᴛʟᴇ</b>: <code>{title}</code> <b>#{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
@@ -239,3 +239,4 @@ async def make_clean_key(name: str):
     season = f" S{int(m.group(1)):02d}" if m else ""
     name = await extract_clean_title(name)
     return f"{name}{season}".strip()
+
