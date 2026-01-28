@@ -26,7 +26,7 @@ FALLBACK_POSTER = "https://graph.org/file/ac3e879a72b7e0c90eb52-0b04163efc1dcbd3
 
 UPDATE_CAPTION = """<blockquote><b>RK CINEHUB #PREMIUM</b></blockquote>
 
-<code>✅ {title}{season_tag}</code> <b>#{kind}</b>
+<code>✅ {title}</code> <b>#{kind}</b>
 
 <blockquote>🎙 <b>{language}</b></blockquote>
 
@@ -65,7 +65,7 @@ async def media(bot, message):
 
 async def queue_movie_file(bot, media):
     raw = media.file_name or ""
-    key = await series_key_format(raw)
+    key = await make_clean_key(raw)
     caption = media.caption or ""
 
     language = (
@@ -95,21 +95,23 @@ async def send_movie_update(bot, key, files):
     imdb = await get_imdb(key)
     tmdb = await get_tmdb(key)
 
-    title = tmdb.get("title") or imdb.get("title") or key
+    base_title = tmdb.get("title") or imdb.get("title") or key
 
     kind_raw = (tmdb.get("kind") or imdb.get("kind") or "").lower()
-    kind = "SERIES" if "tv" in kind_raw else "MOVIE"
+    kind = "SERIES" if ("tv" in kind_raw or "series" in kind_raw) else "MOVIE"
+
+    # 🔥 SEASON ONLY FOR SERIES
+    if kind == "SERIES":
+        m = re.search(r"S(\d{1,2})", key, re.I)
+        season = f" S{int(m.group(1)):02d}" if m else ""
+        title = f"{base_title}{season}"
+    else:
+        title = base_title
 
     genres = tmdb.get("genres") or imdb.get("genres") or "N/A"
 
     imdb_url = imdb.get("url") or f"https://www.imdb.com/find?q={title.replace(' ', '+')}"
     tmdb_url = tmdb.get("url") or f"https://www.themoviedb.org/search?query={title.replace(' ', '+')}"
-
-    season_tag = ""
-    if kind == "SERIES":
-        m = re.search(r"S(\d{1,2})", key, re.I)
-        if m:
-            season_tag = f" S{int(m.group(1)):02d}"
 
     languages = set(f["language"] for f in files if f["language"] != "Not Available")
     language = ", ".join(sorted(languages)) or "Not Available"
@@ -118,7 +120,6 @@ async def send_movie_update(bot, key, files):
 
     caption = UPDATE_CAPTION.format(
         title=title,
-        season_tag=season_tag,
         kind=kind,
         language=language,
         genres=genres,
@@ -163,7 +164,7 @@ async def get_tmdb(query):
                     "kind": "SERIES" if media_type == "tv" else "MOVIE",
                     "genres": genres,
                     "url": f"https://www.themoviedb.org/{media_type}/{item['id']}",
-                    "backdrop": f"https://image.tmdb.org/t/p/w1280{item.get('backdrop_path')}" if item.get("backdrop_path") else None
+                    "backdrop": f"https://image.tmdb.org/t/p/w1280{item['backdrop_path']}" if item.get("backdrop_path") else None
                 }
     return {}
 
@@ -200,10 +201,17 @@ async def get_imdb(name):
 
 # ================= HELPERS ================= #
 
-async def series_key_format(name: str):
+async def make_clean_key(name: str):
+    # remove episode
+    name = re.sub(r'\bS\d{1,2}E\d{1,3}\b', '', name, flags=re.I)
     name = re.sub(r'\b(E|EP)\d{1,3}\b', '', name, flags=re.I)
-    name = re.sub(r'\bS(\d{1,2})E?\d*\b', r'S\1', name, flags=re.I)
-    return await clean_title(name)
+
+    # extract season
+    m = re.search(r'\bS(\d{1,2})\b', name, flags=re.I)
+    season = f" S{int(m.group(1)):02d}" if m else ""
+
+    name = await clean_title(name)
+    return f"{name}{season}".strip()
 
 
 async def clean_title(name: str):
