@@ -16,15 +16,15 @@ def is_enabled(value, default):
 
 # Main
 SESSION = environ.get("SESSION", "Media_search")
-API_ID = int(environ.get("API_ID", "24711114"))
-API_HASH = environ.get("API_HASH", "5b6984923c5be893ccf7c52d378940da")
+API_ID = int(environ.get("API_ID", ""))
+API_HASH = environ.get("API_HASH", "")
 BOT_TOKEN = environ.get("BOT_TOKEN", "")
 PORT = environ.get("PORT", "8082")
 
 # Owners
 ADMINS = [
     int(admin) if id_pattern.search(admin) else admin
-    for admin in environ.get("ADMINS", "8200986306").split()
+    for admin in environ.get("ADMINS", "").split()
 ]
 OWNER_USERNAME = environ.get(
     "OWNER_USERNAME", "Rk2xBots"
@@ -34,7 +34,7 @@ USERNAME = environ.get("USERNAME", "Rk2xBots")  # ADMIN USERNAME
 # Database Channel
 CHANNELS = [
     int(ch) if id_pattern.search(ch) else ch
-    for ch in environ.get("CHANNELS", "-1002859176889 -1002991026353").split()
+    for ch in environ.get("CHANNELS", "").split()
 ]
 
 # ForceSub Channel & Log Channels
@@ -45,11 +45,11 @@ LOG_API_CHANNEL = int(environ.get("LOG_API_CHANNEL", "-1002932289001"))
 LOG_VR_CHANNEL = int(environ.get("LOG_VR_CHANNEL", "-1002932289001"))
 
 # MongoDB
-DATABASE_URI = environ.get("DATABASE_URI", "mongodb+srv://vipsrmbot_db_user:vipsrmbot_db_user@cluster0.xqckni5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+DATABASE_URI = environ.get("DATABASE_URI", "mongodb+srv://:@.")
 DATABASE_NAME = environ.get("DATABASE_NAME", "Cluster0")
 
 # Files index database url
-FILES_DATABASE = environ.get("FILES_DATABASE", "mongodb+srv://vipsrmbot_db_user:vipsrmbot_db_user@cluster0.xqckni5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+FILES_DATABASE = environ.get("FILES_DATABASE", "mongodb+://:@.")
 COLLECTION_NAME = environ.get("COLLECTION_NAME", "jisshu")
 
 # Other Channel's
@@ -161,7 +161,7 @@ LONG_IMDB_DESCRIPTION = is_enabled("LONG_IMDB_DESCRIPTION", False)
 PROTECT_CONTENT = is_enabled("PROTECT_CONTENT", False)
 SPELL_CHECK = is_enabled("SPELL_CHECK", True)
 LINK_MODE = is_enabled("LINK_MODE", True)
-TMDB_API_KEY = environ.get("TMDB_API_KEY", "7787b4fcc90ded2cad84c779966bb750")
+TMDB_API_KEY = environ.get("TMDB_API_KEY", "")
 
 # Online Streaming And Download
 STREAM_MODE = bool(environ.get("STREAM_MODE", True))  # Set True or Flase
